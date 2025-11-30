@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, Bot, BarChart3, FileText, MessageSquare, Zap } from 'lucide-react'
 import ParticleBackground from '../components/UI/ParticleBackground'
@@ -6,6 +7,18 @@ import Card from '../components/UI/Card'
 import PipelineVisualization from '../components/UI/PipelineVisualization'
 
 const Home = () => {
+  const [liveExecutions, setLiveExecutions] = useState(
+    () => 128400 + Math.floor(Math.random() * 2400),
+  )
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLiveExecutions((current) => current + Math.floor(3 + Math.random() * 8))
+    }, 1200)
+
+    return () => clearInterval(interval)
+  }, [])
+
   const useCases = [
     {
       icon: <MessageSquare className="w-8 h-8" />,
@@ -62,6 +75,23 @@ const Home = () => {
                 Conheça o Motor Inteligente
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+              className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4"
+            >
+              <div className="px-6 py-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur text-left shadow-lg">
+                <p className="text-xs uppercase tracking-[0.25em] text-cyan-luminous/80 mb-1">Execuções nas últimas 24h</p>
+                <p className="text-3xl sm:text-4xl font-semibold text-mist-gray">
+                  {liveExecutions.toLocaleString('pt-BR')}
+                </p>
+              </div>
+              <p className="text-blue-gray text-sm max-w-xs">
+                O motor está em execução contínua, alimentando cases, blog e dashboards em tempo real.
+              </p>
             </motion.div>
           </motion.div>
         </div>
