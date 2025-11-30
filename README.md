@@ -84,6 +84,34 @@ npm run build
 
 Os arquivos otimizados estarão em `dist/`.
 
+## 🌐 Publicação no GitHub Pages
+
+1. Certifique-se de que o `base` do Vite está apontando para o nome do repositório quando o build for feito pelo GitHub Actions (já configurado em `vite.config.js` com `VITE_BASE_PATH`).
+   - Para testar localmente com o mesmo caminho usado no Pages, rode, por exemplo:
+
+```bash
+VITE_BASE_PATH="/portal-automacao-inteligente/" npm run build
+```
+
+2. O workflow `Deploy to GitHub Pages` em `.github/workflows/deploy.yml` já está pronto. Ele:
+   - usa Node 20;
+   - prepara o ambiente do Pages com `actions/configure-pages`;
+   - executa `npm ci` e `npm run build` com `VITE_BASE_PATH=/nome-do-repositorio/`;
+   - publica automaticamente a pasta `dist/` no ambiente `github-pages`.
+3. No GitHub, acesse **Settings → Pages** e selecione a opção **Deploy from GitHub Actions**.
+4. Faça um push na branch `main` (ou dispare manualmente o workflow em **Actions → Deploy to GitHub Pages → Run workflow**). Ao final da execução, o link público aparecerá nos detalhes do deploy.
+5. Se usar domínio personalizado, aponte o DNS para o GitHub Pages e configure o domínio em **Settings → Pages**; nesse caso, você pode deixar `VITE_BASE_PATH` como `/` se o site estiver na raiz do domínio.
+
+### Subindo as alterações para a branch `main`
+
+Se o trabalho estiver em outra branch local (ex.: `work`), você pode enviar o histórico atual diretamente para a branch principal no GitHub com:
+
+```bash
+git push origin HEAD:main
+```
+
+Isso cria ou atualiza a `main` remota com o estado atual do repositório. Depois do push, o workflow de Pages será acionado automaticamente.
+
 ## 🎯 Páginas
 
 1. **Home** (`/`) - Hero imersivo, motor inteligente, casos de uso
