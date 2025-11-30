@@ -29,13 +29,13 @@ const Contato = () => {
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center max-w-4xl mx-auto"
+            className="section-header max-w-4xl"
           >
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
               <span className="text-gradient-cyan">Teste Nossa Automação Agora Mesmo</span>
@@ -59,7 +59,7 @@ const Contato = () => {
 
       {/* CTA Principal */}
       <section className="relative py-12 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -108,14 +108,14 @@ const Contato = () => {
       </section>
 
       {/* Formulário de Contato */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto max-w-2xl">
+      <section className="section-shell">
+        <div className="section-container max-w-2xl">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-gradient-cyan">Ou Envie uma Mensagem</span>
@@ -190,14 +190,14 @@ const Contato = () => {
       </section>
 
       {/* Informações de Contato */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto">
+      <section className="section-shell bg-graphite-cold/30">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-gradient-cyan">Outras Formas de Contato</span>

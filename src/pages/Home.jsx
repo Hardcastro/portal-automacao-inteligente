@@ -47,8 +47,8 @@ const Home = () => {
       <ParticleBackground particleCount={50} />
       
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto text-center z-10">
+      <section className="section-shell min-h-[90vh] flex items-center justify-center">
+        <div className="section-container text-center z-10 max-w-5xl">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -98,14 +98,14 @@ const Home = () => {
       </section>
 
       {/* Motor Inteligente Section */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
               <span className="text-gradient-cyan">Aqui está como suas automações funcionam</span>
@@ -120,14 +120,14 @@ const Home = () => {
       </section>
 
       {/* Casos de Uso */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto">
+      <section className="section-shell bg-graphite-cold/30">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
               <span className="text-gradient-cyan">Casos de Uso Imediatos</span>
@@ -159,8 +159,8 @@ const Home = () => {
       </section>
 
       {/* Depoimento */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto max-w-4xl">
+      <section className="section-shell">
+        <div className="section-container max-w-4xl">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -186,8 +186,8 @@ const Home = () => {
       </section>
 
       {/* CTA Final */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto text-center">
+      <section className="section-shell">
+        <div className="section-container text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
