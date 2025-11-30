@@ -52,13 +52,13 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center max-w-4xl mx-auto"
+            className="section-header max-w-4xl"
           >
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
               <span className="text-gradient-cyan">Dashboard Estratégico</span>
@@ -72,7 +72,7 @@ const Dashboard = () => {
 
       {/* Indicadores Principais */}
       <section className="relative py-12 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+        <div className="section-container">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {indicators.map((indicator, index) => (
               <motion.div
@@ -116,7 +116,7 @@ const Dashboard = () => {
 
       {/* Gráficos e Visualizações */}
       <section className="relative py-12 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto">
+        <div className="section-container">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Inflação Global */}
             <motion.div
@@ -197,7 +197,7 @@ const Dashboard = () => {
 
       {/* Rankings Estratégicos */}
       <section className="relative py-12 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -257,7 +257,7 @@ const Dashboard = () => {
 
       {/* Moedas */}
       <section className="relative py-12 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}

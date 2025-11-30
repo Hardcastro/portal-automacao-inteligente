@@ -62,13 +62,13 @@ const ComoAutomatizamos = () => {
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center max-w-4xl mx-auto"
+            className="section-header max-w-4xl"
           >
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
               <span className="text-gradient-cyan">Como Automatizamos Nosso Próprio Portal</span>
@@ -87,14 +87,14 @@ const ComoAutomatizamos = () => {
       </section>
 
       {/* Fluxo Completo */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto">
+      <section className="section-shell bg-graphite-cold/30">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-gradient-cyan">Fluxo Completo do Pipeline</span>
@@ -152,14 +152,14 @@ const ComoAutomatizamos = () => {
       </section>
 
       {/* Diagrama Interativo */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-gradient-cyan">Diagrama Interativo</span>
@@ -214,14 +214,14 @@ const ComoAutomatizamos = () => {
       </section>
 
       {/* Case Study Visual */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto">
+      <section className="section-shell bg-graphite-cold/30">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-gradient-cyan">Métricas do Case Study</span>
@@ -258,8 +258,8 @@ const ComoAutomatizamos = () => {
       </section>
 
       {/* Prova Viva */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto max-w-4xl">
+      <section className="section-shell">
+        <div className="section-container max-w-4xl">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}

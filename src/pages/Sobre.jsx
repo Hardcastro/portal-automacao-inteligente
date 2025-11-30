@@ -39,13 +39,13 @@ const Sobre = () => {
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center max-w-4xl mx-auto"
+            className="section-header max-w-4xl"
           >
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-8">
               <span className="text-gradient-cyan">Manifesto</span>
@@ -58,8 +58,8 @@ const Sobre = () => {
       </section>
 
       {/* Visão Geral */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto max-w-5xl">
+      <section className="section-shell bg-graphite-cold/30">
+        <div className="section-container max-w-5xl">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -87,14 +87,14 @@ const Sobre = () => {
       </section>
 
       {/* Pilares */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-16"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
               <span className="text-gradient-cyan">Nossos Pilares</span>
@@ -141,8 +141,8 @@ const Sobre = () => {
       </section>
 
       {/* Filosofia */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto max-w-5xl">
+      <section className="section-shell bg-graphite-cold/30">
+        <div className="section-container max-w-5xl">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -190,8 +190,8 @@ const Sobre = () => {
       </section>
 
       {/* CTA Final */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto text-center max-w-3xl">
+      <section className="section-shell">
+        <div className="section-container text-center max-w-3xl">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}

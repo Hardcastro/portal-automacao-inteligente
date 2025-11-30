@@ -65,8 +65,8 @@ const Automacao = () => {
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -84,14 +84,14 @@ const Automacao = () => {
       </section>
 
       {/* O que é Automação Inteligente */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto">
+      <section className="section-shell bg-graphite-cold/30">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-gradient-cyan">O que é Automação Inteligente?</span>
@@ -126,14 +126,14 @@ const Automacao = () => {
       </section>
 
       {/* Motor IA Operacional */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-gradient-cyan">O Motor IA Operacional</span>
@@ -180,14 +180,14 @@ const Automacao = () => {
       </section>
 
       {/* Demonstração Visual */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto">
+      <section className="section-shell bg-graphite-cold/30">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-gradient-cyan">Demonstração Visual Real</span>
@@ -226,14 +226,14 @@ const Automacao = () => {
       </section>
 
       {/* Pacotes / Soluções */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-gradient-cyan">Pacotes e Soluções</span>
@@ -278,8 +278,8 @@ const Automacao = () => {
       </section>
 
       {/* CTA */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto text-center">
+      <section className="section-shell bg-graphite-cold/30">
+        <div className="section-container text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
