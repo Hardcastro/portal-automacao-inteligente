@@ -56,5 +56,50 @@
       0 10px 30px rgba(0, 0, 0, 0.5),
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
+
+  /* Estilo para conteúdo de relatórios */
+  .report-content {
+    @apply text-mist-gray leading-relaxed;
+  }
+
+  .report-content h1,
+  .report-content h2,
+  .report-content h3 {
+    @apply text-gradient-cyan font-bold mt-8 mb-4;
+  }
+
+  .report-content h1 { @apply text-3xl; }
+  .report-content h2 { @apply text-2xl; }
+  .report-content h3 { @apply text-xl; }
+
+  .report-content p { @apply mb-4 text-blue-gray; }
+
+  .report-content ul,
+  .report-content ol { @apply mb-4 ml-6 space-y-2; }
+
+  .report-content li { @apply text-blue-gray; }
+
+  .report-content a { @apply text-cyan-luminous hover:text-electric-blue underline; }
+
+  .report-content blockquote {
+    @apply border-l-4 border-cyan-luminous pl-4 italic text-blue-gray my-4;
+  }
+
+  .report-content code {
+    @apply bg-white/10 px-2 py-1 rounded text-cyan-luminous text-sm;
+  }
+
+  .report-content pre {
+    @apply bg-white/10 p-4 rounded-lg overflow-x-auto my-4;
+  }
+
+  .report-content img { @apply rounded-lg my-6 max-w-full; }
+
+  .report-content table { @apply w-full border-collapse my-6; }
+
+  .report-content th,
+  .report-content td { @apply border border-white/20 px-4 py-2 text-left; }
+
+  .report-content th { @apply bg-white/10 font-semibold text-mist-gray; }
 }
 
