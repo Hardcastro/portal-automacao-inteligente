@@ -1,90 +1,118 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Calendar, Tag, Zap } from 'lucide-react'
+import { Calendar, Tag, Zap, Loader2, AlertCircle } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
+import { validateAndNormalizeReports } from '../utils/validateReport'
+import { filterByCategory, formatDate, getCategoryEmoji } from '../utils/reportHelpers'
+
+const filters = [
+  { id: 'todos', label: 'Todos' },
+  { id: 'geopolitica', label: 'Geopolítica' },
+  { id: 'macroeconomia', label: 'Macroeconomia' },
+  { id: 'tendencias', label: 'Tendências' },
+  { id: 'mercados', label: 'Mercados' },
+]
 
 const Blog = () => {
   const [activeFilter, setActiveFilter] = useState('todos')
+  const [posts, setPosts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const navigate = useNavigate()
 
-  const filters = [
-    { id: 'todos', label: 'Todos' },
-    { id: 'geopolitica', label: 'Geopolítica' },
-    { id: 'macroeconomia', label: 'Macroeconomia' },
-    { id: 'tendencias', label: 'Tendências' },
-    { id: 'mercados', label: 'Mercados' },
-  ]
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setLoading(true)
+        setError(null)
 
-  const posts = [
-    {
-      id: 1,
-      title: 'Análise Geopolítica: Tensões no Oriente Médio',
-      excerpt: 'Análise profunda das dinâmicas geopolíticas atuais e seus impactos globais.',
-      category: 'geopolitica',
-      date: '2024-01-15',
-      readTime: '5 min',
-    },
-    {
-      id: 2,
-      title: 'Macroeconomia Global: Inflação e Taxas de Juros',
-      excerpt: 'Panorama econômico mundial com foco em políticas monetárias e inflação.',
-      category: 'macroeconomia',
-      date: '2024-01-14',
-      readTime: '7 min',
-    },
-    {
-      id: 3,
-      title: 'Tendências Tecnológicas 2024',
-      excerpt: 'As principais tendências tecnológicas que moldarão o futuro próximo.',
-      category: 'tendencias',
-      date: '2024-01-13',
-      readTime: '6 min',
-    },
-    {
-      id: 4,
-      title: 'Mercados Emergentes: Oportunidades e Riscos',
-      excerpt: 'Análise detalhada dos mercados emergentes e suas perspectivas de crescimento.',
-      category: 'mercados',
-      date: '2024-01-12',
-      readTime: '8 min',
-    },
-    {
-      id: 5,
-      title: 'Geopolítica Energética: Transição e Segurança',
-      excerpt: 'Como a transição energética está redefinindo alianças geopolíticas globais.',
-      category: 'geopolitica',
-      date: '2024-01-11',
-      readTime: '6 min',
-    },
-    {
-      id: 6,
-      title: 'Macroeconomia: Crescimento e Desenvolvimento',
-      excerpt: 'Perspectivas de crescimento econômico global e desafios estruturais.',
-      category: 'macroeconomia',
-      date: '2024-01-10',
-      readTime: '5 min',
-    },
-  ]
+        // Estratégia A: API em tempo real
+        const response = await fetch('/api/reports?limit=60', { cache: 'no-cache' })
+        if (!response.ok) throw new Error('Falha ao carregar relatórios')
+        const data = await response.json()
+        const normalized = validateAndNormalizeReports(data.reports || [])
+        setPosts(normalized)
+        localStorage.setItem('reports_cache', JSON.stringify(normalized))
+      } catch (err) {
+        console.warn('Erro na API, carregando fallback:', err)
+        setError('Não foi possível atualizar os relatórios agora.')
+        await loadFallback()
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const filteredPosts = activeFilter === 'todos' 
-    ? posts 
-    : posts.filter(post => post.category === activeFilter)
+    const loadFallback = async () => {
+      // 1) Cache local
+      const cached = localStorage.getItem('reports_cache')
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached)
+          setPosts(parsed)
+          return
+        } catch (e) {
+          console.warn('Falha ao ler cache local', e)
+        }
+      }
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
+      // 2) JSON local gerado via n8n/commit
+      try {
+        const localData = await import('../data/reports.example.json')
+        const normalized = validateAndNormalizeReports(localData.default.reports || [])
+        setPosts(normalized)
+      } catch (e) {
+        console.warn('Fallback local indisponível', e)
+        setPosts([])
+      }
+    }
+
+    fetchReports()
+  }, [])
+
+  const filteredPosts = filterByCategory(posts, activeFilter)
+
+  const handleReadMore = (post) => {
+    navigate(`/blog/${post.slug}`)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-cyan-luminous animate-spin mx-auto mb-4" />
+          <p className="text-blue-gray">Carregando relatórios...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!loading && posts.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="max-w-md text-center">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-mist-gray mb-2">Nenhum relatório disponível</h2>
+          <p className="text-blue-gray mb-4">
+            {error || 'Tente novamente mais tarde.'}
+          </p>
+          <Button onClick={() => window.location.reload()}>Recarregar</Button>
+        </Card>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center max-w-4xl mx-auto"
+            className="section-header max-w-4xl"
           >
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
               <span className="text-gradient-cyan">Blog Estratégico</span>
@@ -104,7 +132,7 @@ const Blog = () => {
 
       {/* Filtros */}
       <section className="relative py-8 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto">
+        <div className="section-container">
           <div className="flex flex-wrap justify-center gap-3">
             {filters.map((filter) => (
               <button
@@ -124,8 +152,8 @@ const Blog = () => {
       </section>
 
       {/* Grid de Posts */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPosts.map((post, index) => (
               <motion.div
@@ -136,18 +164,32 @@ const Blog = () => {
                 transition={{ delay: index * 0.1, duration: 0.6 }}
               >
                 <Card className="h-full flex flex-col">
-                  {/* Capa Minimalista */}
-                  <div className="h-48 bg-gradient-to-br from-cyan-luminous/20 to-electric-blue/20 rounded-lg mb-4 flex items-center justify-center">
-                    <div className="text-4xl opacity-50">
-                      {post.category === 'geopolitica' && '🌍'}
-                      {post.category === 'macroeconomia' && '📊'}
-                      {post.category === 'tendencias' && '🚀'}
-                      {post.category === 'mercados' && '💹'}
+                  {/* Capa ou Thumbnail */}
+                  {post.thumbnail ? (
+                    <div className="h-48 rounded-lg mb-4 overflow-hidden">
+                      <img
+                        src={post.thumbnail}
+                        alt={post.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="h-48 bg-gradient-to-br from-cyan-luminous/20 to-electric-blue/20 rounded-lg mb-4 flex items-center justify-center">
+                      <div className="text-4xl opacity-50">
+                        {getCategoryEmoji(post.category)}
+                      </div>
+                    </div>
+                  )}
 
-                  {/* Badge */}
-                  <div className="mb-3">
+                  {/* Badges */}
+                  <div className="mb-3 flex items-center gap-2 flex-wrap">
+                    {post.isNew && (
+                      <span className="inline-flex items-center space-x-1 px-2 py-1 bg-neon-green/20 text-neon-green text-xs font-semibold rounded">
+                        <span>✨</span>
+                        <span>Novo</span>
+                      </span>
+                    )}
                     <span className="inline-flex items-center space-x-1 px-2 py-1 bg-cyan-luminous/10 text-cyan-luminous text-xs font-semibold rounded">
                       <Zap className="w-3 h-3" />
                       <span>Gerado pelo Motor</span>
@@ -161,6 +203,20 @@ const Blog = () => {
                   <p className="text-blue-gray text-sm mb-4 flex-grow line-clamp-3">
                     {post.excerpt}
                   </p>
+
+                  {/* Tags */}
+                  {post.tags && post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-4">
+                      {post.tags.slice(0, 3).map((tag, idx) => (
+                        <span
+                          key={`${post.id}-tag-${idx}`}
+                          className="px-2 py-1 bg-white/5 text-blue-gray text-xs rounded"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Meta */}
                   <div className="flex items-center justify-between text-xs text-blue-gray pt-4 border-t border-white/10">
@@ -176,7 +232,12 @@ const Blog = () => {
 
                   {/* CTA */}
                   <div className="mt-4">
-                    <Button variant="outline" size="sm" className="w-full">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => handleReadMore(post)}
+                    >
                       Ler mais
                     </Button>
                   </div>
@@ -188,23 +249,10 @@ const Blog = () => {
           {filteredPosts.length === 0 && (
             <div className="text-center py-12">
               <p className="text-blue-gray text-lg">
-                Nenhum post encontrado nesta categoria.
+                Nenhum relatório encontrado nesta categoria.
               </p>
             </div>
           )}
-        </div>
-      </section>
-
-      {/* Paginação */}
-      <section className="relative py-8 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
-          <div className="flex justify-center space-x-2">
-            <Button variant="secondary" size="sm">Anterior</Button>
-            <Button variant="primary" size="sm">1</Button>
-            <Button variant="secondary" size="sm">2</Button>
-            <Button variant="secondary" size="sm">3</Button>
-            <Button variant="secondary" size="sm">Próxima</Button>
-          </div>
         </div>
       </section>
     </div>

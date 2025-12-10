@@ -34,13 +34,13 @@ const Cliente = () => {
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center max-w-4xl mx-auto"
+            className="section-header max-w-4xl"
           >
             <div className="inline-flex items-center space-x-2 mb-6">
               <Lock className="w-8 h-8 text-cyan-luminous" />
@@ -61,14 +61,14 @@ const Cliente = () => {
       </section>
 
       {/* Features */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
+      <section className="section-shell">
+        <div className="section-container">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="section-header"
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-gradient-cyan">Funcionalidades</span>
@@ -110,8 +110,8 @@ const Cliente = () => {
       </section>
 
       {/* Placeholder de Login */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
-        <div className="container mx-auto max-w-md">
+      <section className="section-shell bg-graphite-cold/30">
+        <div className="section-container max-w-md">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -136,7 +136,7 @@ const Cliente = () => {
 
       {/* Informação */}
       <section className="relative py-12 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto max-w-3xl text-center">
+        <div className="section-container max-w-3xl text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
