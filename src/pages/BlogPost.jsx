@@ -6,6 +6,7 @@ import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
 import { validateAndNormalizeReports } from '../utils/validateReport'
 import { formatDate, getCategoryName } from '../utils/reportHelpers'
+import { getReportsFromApi } from '../api/getReports'
 
 const BlogPost = () => {
   const { slug } = useParams()
@@ -20,19 +21,28 @@ const BlogPost = () => {
         setLoading(true)
         setError(null)
 
-        // Estratégia A: API em tempo real
-        const response = await fetch(`/api/reports/${slug}`, { cache: 'no-cache' })
-        if (response.ok) {
-          const data = await response.json()
-          setPost(data)
-          return
+        const cached = localStorage.getItem('reports_cache')
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached)
+            const cachedReport = parsed.find((item) => item.slug === slug)
+            if (cachedReport) {
+              setPost(cachedReport)
+            }
+          } catch (e) {
+            console.warn('Cache local inválido', e)
+          }
         }
 
-        // Estratégia B: fallback local (JSON commitado)
-        const localData = await import('../data/reports.example.json')
-        const normalized = validateAndNormalizeReports(localData.default.reports || [])
+        const { reports } = await getReportsFromApi(120)
+        const normalized = validateAndNormalizeReports(reports || [])
+        localStorage.setItem('reports_cache', JSON.stringify(normalized))
+
         const found = normalized.find((item) => item.slug === slug)
-        if (!found) throw new Error('Relatório não encontrado')
+        if (!found) {
+          throw new Error('Relatório não encontrado')
+        }
+
         setPost(found)
       } catch (err) {
         console.warn('Erro ao carregar relatório', err)
