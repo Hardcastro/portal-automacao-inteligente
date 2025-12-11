@@ -1,0 +1,66 @@
+{
+  "reports": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "slug": "analise-geopolitica-tensoes-oriente-medio-2024",
+      "title": "Análise Geopolítica: Tensões no Oriente Médio",
+      "excerpt": "Análise profunda das dinâmicas geopolíticas atuais e seus impactos globais, com foco nas tensões regionais e implicações para a economia mundial.",
+      "category": "geopolitica",
+      "tags": ["geopolítica", "oriente médio", "conflitos", "energia"],
+      "date": "2024-01-15T10:00:00Z",
+      "readTime": 5,
+      "content": {
+        "type": "html",
+        "body": "<h2>Introdução</h2><p>As tensões no Oriente Médio continuam a moldar o cenário geopolítico global...</p><h2>Análise Regional</h2><p>Os desenvolvimentos recentes indicam uma reconfiguração das alianças...</p>"
+      },
+      "contentUrl": null,
+      "thumbnail": null,
+      "author": "Motor Inteligente",
+      "generatedAt": "2024-01-15T10:00:00Z",
+      "version": "1.0"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "slug": "macroeconomia-global-inflacao-taxas-juros-2024",
+      "title": "Macroeconomia Global: Inflação e Taxas de Juros",
+      "excerpt": "Panorama econômico mundial com foco em políticas monetárias, inflação e o impacto das decisões dos bancos centrais nos mercados globais.",
+      "category": "macroeconomia",
+      "tags": ["inflação", "taxa de juros", "banco central", "política monetária"],
+      "date": "2024-01-14T09:30:00Z",
+      "readTime": 7,
+      "content": {
+        "type": "html",
+        "body": "<h2>Contexto Macroeconômico</h2><p>A inflação global permanece um desafio central para os formuladores de políticas...</p>"
+      },
+      "contentUrl": "https://storage.example.com/reports/macroeconomia-2024-01.pdf",
+      "thumbnail": null,
+      "author": "Motor Inteligente",
+      "generatedAt": "2024-01-14T09:30:00Z",
+      "version": "1.0"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "slug": "tendencias-tecnologicas-2024",
+      "title": "Tendências Tecnológicas 2024",
+      "excerpt": "As principais tendências tecnológicas que moldarão o futuro próximo, incluindo IA generativa, computação quântica e transformação digital.",
+      "category": "tendencias",
+      "tags": ["tecnologia", "IA", "inovação", "transformação digital"],
+      "date": "2024-01-13T14:20:00Z",
+      "readTime": 6,
+      "content": {
+        "type": "markdown",
+        "body": "## Introdução\n\nAs tendências tecnológicas de 2024 estão redefinindo indústrias...\n\n## Inteligência Artificial\n\nA IA generativa continua a evoluir rapidamente..."
+      },
+      "contentUrl": null,
+      "thumbnail": null,
+      "author": "Motor Inteligente",
+      "generatedAt": "2024-01-13T14:20:00Z",
+      "version": "1.0"
+    }
+  ],
+  "meta": {
+    "total": 3,
+    "lastUpdated": "2024-01-15T10:30:00Z"
+  }
+}
+
