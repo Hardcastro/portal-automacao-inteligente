@@ -140,7 +140,7 @@ const BlogPost = () => {
             )}
 
             {/* Ações (Download/Link) */}
-            {(post.contentUrl || post.content) && (
+            {post.contentUrl && (
               <div className="flex flex-wrap gap-3">
                 {post.contentUrl && (
                   <Button
