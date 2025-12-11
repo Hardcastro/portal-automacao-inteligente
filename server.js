@@ -12,6 +12,8 @@ const REPORTS_SECRET = process.env.REPORTS_SECRET_TOKEN
 const REPORTS_FILE = path.join(__dirname, 'public', 'reports.json')
 const PAYLOAD_LIMIT = 1_000_000 // ~1MB
 
+const VALID_CATEGORIES = ['geopolitica', 'macroeconomia', 'tendencias', 'mercados']
+
 const ensureReportsFile = async () => {
   await fsPromises.mkdir(path.dirname(REPORTS_FILE), { recursive: true })
   if (!fs.existsSync(REPORTS_FILE)) {
@@ -64,6 +66,15 @@ const isValidUrl = (value) => {
   }
 }
 
+const sanitizeExcerpt = (excerpt) => {
+  if (typeof excerpt !== 'string') return ''
+  return excerpt
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
+    .replace(/[\u2190-\u21FF]/g, '->')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 const validateReportPayload = (report) => {
   const requiredFields = ['id', 'title', 'slug', 'excerpt', 'category', 'date']
   const missing = requiredFields.filter((field) => !report?.[field])
@@ -71,8 +82,16 @@ const validateReportPayload = (report) => {
     return `Campos obrigatórios faltando: ${missing.join(', ')}`
   }
 
+  if (!sanitizeExcerpt(report.excerpt)) {
+    return 'Excerpt inválido'
+  }
+
   if (!validateUuid(report.id) || uuidVersion(report.id) !== 4) {
     return 'ID inválido: deve ser um UUID v4'
+  }
+
+  if (!/^[-a-z0-9]+$/i.test(report.slug)) {
+    return 'Slug inválido: use apenas letras, números e hífens'
   }
 
   if (!isValidDate(report.date)) {
@@ -93,6 +112,38 @@ const validateReportPayload = (report) => {
   if (report.contentUrl && !isValidUrl(report.contentUrl)) {
     return 'contentUrl não é uma URL válida'
   }
+
+  if (report.category && !VALID_CATEGORIES.includes(report.category)) {
+    return `Categoria inválida. Use: ${VALID_CATEGORIES.join(', ')}`
+  }
+
+  if (report.readTime !== undefined && (Number.isNaN(Number(report.readTime)) || Number(report.readTime) <= 0)) {
+    return 'readTime deve ser um número positivo'
+  }
+
+  return null
+}
+
+const normalizeReport = (report) => {
+  const sanitizedExcerpt = sanitizeExcerpt(report.excerpt)
+  const sanitizedReport = {
+    id: report.id,
+    slug: report.slug,
+    title: String(report.title || '').trim(),
+    excerpt: sanitizedExcerpt,
+    category: report.category || 'tendencias',
+    tags: Array.isArray(report.tags) ? report.tags.filter(Boolean).slice(0, 10) : [],
+    date: report.date,
+    readTime: report.readTime ? Number(report.readTime) : undefined,
+    content: report.content || null,
+    contentUrl: report.contentUrl || null,
+    thumbnail: report.thumbnail || null,
+    author: report.author || 'Motor Inteligente',
+    metadata: report.metadata || {},
+  }
+
+  return sanitizedReport
+}
 
   return null
 }
@@ -190,6 +241,10 @@ const handlePostReports = async (req, res) => {
   }
 
   const existing = await readReportsFromDisk()
+  const mergedMap = new Map(existing.reports.map((report) => [report.id, normalizeReport(report)]))
+
+  incoming.forEach((report) => {
+    mergedMap.set(report.id, { ...mergedMap.get(report.id), ...normalizeReport(report) })
   const mergedMap = new Map(existing.reports.map((report) => [report.id, report]))
 
   incoming.forEach((report) => {

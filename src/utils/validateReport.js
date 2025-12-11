@@ -35,6 +35,12 @@ const VALID_CATEGORIES = ['geopolitica', 'macroeconomia', 'tendencias', 'mercado
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const SLUG_REGEX = /^[a-z0-9-]+$/
 
+const sanitizeExcerpt = (excerpt = '') => excerpt
+  .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
+  .replace(/[\u2190-\u21FF]/g, '->')
+  .replace(/\s+/g, ' ')
+  .trim()
+
 /**
  * Valida se um relatório tem todos os campos obrigatórios e valores válidos
  * @param {Object} report - Objeto do relatório a ser validado
@@ -71,14 +77,15 @@ export const validateReport = (report) => {
   }
 
   // Validação de título
-  if (report.title.length < 10 || report.title.length > 200) {
-    console.warn(`Relatório inválido: título deve ter entre 10 e 200 caracteres`)
+  if (report.title.length < 3 || report.title.length > 240) {
+    console.warn(`Relatório inválido: título deve ter entre 3 e 240 caracteres`)
     return false
   }
 
   // Validação de excerpt
-  if (report.excerpt.length < 50 || report.excerpt.length > 300) {
-    console.warn(`Relatório inválido: excerpt deve ter entre 50 e 300 caracteres`)
+  const cleanedExcerpt = sanitizeExcerpt(report.excerpt)
+  if (!cleanedExcerpt) {
+    console.warn('Relatório inválido: excerpt vazio ou inválido')
     return false
   }
 
@@ -92,6 +99,12 @@ export const validateReport = (report) => {
   const date = new Date(report.date)
   if (isNaN(date.getTime())) {
     console.warn(`Relatório inválido: data inválida: ${report.date}`)
+    return false
+  }
+
+  // Content obrigatorio (content ou contentUrl)
+  if (!report.content && !report.contentUrl) {
+    console.warn('Relatório inválido: envie content ou contentUrl')
     return false
   }
 
@@ -138,11 +151,12 @@ export const validateReport = (report) => {
  * @returns {Object} - Relatório normalizado
  */
 export const normalizeReport = (report) => {
+  const cleanedExcerpt = sanitizeExcerpt(report.excerpt)
   return {
     id: report.id,
     slug: report.slug || generateSlug(report.title),
     title: report.title.trim(),
-    excerpt: report.excerpt.trim(),
+    excerpt: cleanedExcerpt,
     category: VALID_CATEGORIES.includes(report.category) ? report.category : 'tendencias',
     tags: Array.isArray(report.tags) ? report.tags.slice(0, 10) : [],
     date: report.date,
