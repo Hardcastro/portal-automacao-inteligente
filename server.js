@@ -145,6 +145,9 @@ const normalizeReport = (report) => {
   return sanitizedReport
 }
 
+  return null
+}
+
 const normalizeIncomingReports = (body) => {
   if (!body) return []
 
@@ -242,6 +245,10 @@ const handlePostReports = async (req, res) => {
 
   incoming.forEach((report) => {
     mergedMap.set(report.id, { ...mergedMap.get(report.id), ...normalizeReport(report) })
+  const mergedMap = new Map(existing.reports.map((report) => [report.id, report]))
+
+  incoming.forEach((report) => {
+    mergedMap.set(report.id, { ...mergedMap.get(report.id), ...report })
   })
 
   const mergedReports = Array.from(mergedMap.values()).sort(
