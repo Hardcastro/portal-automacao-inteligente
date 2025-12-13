@@ -63,5 +63,36 @@ Retorna um único relatório pelo `slug` ou `404` se não encontrado.
 - Start: `npm run start` (server entrega `dist/` e as rotas da API).
 - Para domínio próprio (ex.: aetherflow.digital), configure o serviço no Render e aponte DNS conforme o painel da plataforma.
 
+### 🟣 Passo a passo no Render
+1) **Criar o serviço Web**
+   - Tipo: Web Service.
+   - Região: escolha a mais próxima do público.
+   - Repositório: `portal-automacao-inteligente` (branch `main`).
+   - Build command: `npm install && npm run build`.
+   - Start command: `npm run start`.
+
+2) **Variáveis de ambiente** (Dashboard → Environment):
+   - `REPORTS_SECRET_TOKEN` – token usado para autenticar o `POST /api/reports`.
+   - `VITE_REPORTS_API_URL` – por exemplo `https://portal-automacao-inteligente.onrender.com/api/reports`.
+   - `VITE_REPORTS_FALLBACK_URL` – por exemplo `https://portal-automacao-inteligente.onrender.com/public/latest.json`.
+
+3) **Porta e static files**
+   - Render expõe a porta via variável `PORT`; o `server.js` já a lê e serve `dist/` como SPA fallback.
+   - Não é necessário serviço estático separado, pois o mesmo servidor expõe API e assets.
+
+4) **Primeiro deploy**
+   - Dispare um deploy (Deploy latest commit) e aguarde o log finalizar.
+   - Valide `/api/reports` (GET) e o front `/blog` via o domínio do Render.
+
+5) **Domínio customizado** (opcional)
+   - Adicione o domínio em *Custom Domains* (ex.: `aetherflow.digital`).
+   - Crie/atualize DNS: A/AAAA apontando para o IP fornecido ou CNAME `www` → host do Render.
+   - Aguarde o SSL automático emitir e valide que `/blog/<slug>` abre diretamente (deep link).
+
+6) **Testar ingestão Activepieces**
+   - Envie um POST autenticado para `/api/reports` com payload de teste.
+   - Confirme atualização em `public/reports.json` e `public/latest.json` (GET).
+   - Abra o front e verifique se o novo relatório aparece sem rebuild.
+
 ## 📄 Licença
 Projeto privado.

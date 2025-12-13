@@ -41,17 +41,6 @@ const Blog = () => {
         }
 
         const { reports } = await getReportsFromApi(RECOMMENDED_LIMIT)
-        const cached = localStorage.getItem('reports_cache')
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached)
-            setPosts(parsed)
-          } catch (e) {
-            console.warn('Não foi possível usar cache local', e)
-          }
-        }
-
-        const { reports } = await getReportsFromApi(60)
         const normalized = validateAndNormalizeReports(reports || [])
         setPosts(normalized)
         localStorage.setItem('reports_cache', JSON.stringify({ reports: normalized }))

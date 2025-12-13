@@ -1,7 +1,6 @@
 import { REPORTS_API_URL, REPORTS_FALLBACK_URL, RECOMMENDED_LIMIT } from '../constants'
 
 const STORAGE_KEY = 'reports_cache'
-import { REPORTS_API_URL, REPORTS_FALLBACK_URL } from '../constants'
 
 const appendLimitParam = (url, limit) => {
   try {
@@ -55,13 +54,6 @@ const loadCache = () => {
 }
 
 export const getReportsFromApi = async (limit = RECOMMENDED_LIMIT) => {
-  if (!data?.reports) {
-    throw new Error(`Resposta inválida de ${url}`)
-  }
-  return data
-}
-
-export const getReportsFromApi = async (limit = 60) => {
   const sources = [REPORTS_API_URL, REPORTS_FALLBACK_URL].filter(Boolean)
 
   for (const source of sources) {
@@ -106,7 +98,4 @@ export const getReportBySlug = async (slug) => {
   }
 
   return cachedReport || null
-}
-  const localData = await import('../data/reports.example.json')
-  return { reports: localData.default.reports || [], meta: localData.default.meta || {}, source: 'local' }
 }
