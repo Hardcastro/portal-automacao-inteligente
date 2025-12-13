@@ -5,6 +5,7 @@ import { Calendar, Tag, Zap, Loader2, AlertCircle } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
 import { validateAndNormalizeReports } from '../utils/validateReport'
+import { getReportsFromApi } from '../api/getReports'
 import { filterByCategory, formatDate, getCategoryEmoji } from '../utils/reportHelpers'
 
 const filters = [
@@ -28,43 +29,34 @@ const Blog = () => {
         setLoading(true)
         setError(null)
 
-        // Estratégia A: API em tempo real
-        const response = await fetch('/api/reports?limit=60', { cache: 'no-cache' })
-        if (!response.ok) throw new Error('Falha ao carregar relatórios')
-        const data = await response.json()
-        const normalized = validateAndNormalizeReports(data.reports || [])
+        const cached = localStorage.getItem('reports_cache')
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached)
+            setPosts(parsed)
+          } catch (e) {
+            console.warn('Não foi possível usar cache local', e)
+          }
+        }
+
+        const { reports } = await getReportsFromApi(60)
+        const normalized = validateAndNormalizeReports(reports || [])
         setPosts(normalized)
         localStorage.setItem('reports_cache', JSON.stringify(normalized))
       } catch (err) {
         console.warn('Erro na API, carregando fallback:', err)
         setError('Não foi possível atualizar os relatórios agora.')
-        await loadFallback()
+
+        try {
+          const localData = await import('../data/reports.example.json')
+          const normalized = validateAndNormalizeReports(localData.default.reports || [])
+          setPosts(normalized)
+        } catch (e) {
+          console.warn('Fallback local indisponível', e)
+          setPosts([])
+        }
       } finally {
         setLoading(false)
-      }
-    }
-
-    const loadFallback = async () => {
-      // 1) Cache local
-      const cached = localStorage.getItem('reports_cache')
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached)
-          setPosts(parsed)
-          return
-        } catch (e) {
-          console.warn('Falha ao ler cache local', e)
-        }
-      }
-
-      // 2) JSON local gerado via n8n/commit
-      try {
-        const localData = await import('../data/reports.example.json')
-        const normalized = validateAndNormalizeReports(localData.default.reports || [])
-        setPosts(normalized)
-      } catch (e) {
-        console.warn('Fallback local indisponível', e)
-        setPosts([])
       }
     }
 
@@ -231,14 +223,14 @@ const Blog = () => {
                   </div>
 
                   {/* CTA */}
-                  <div className="mt-4">
+                  <div className="mt-4 flex flex-col sm:flex-row gap-3">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full"
+                      className="w-full sm:w-auto"
                       onClick={() => handleReadMore(post)}
                     >
-                      Ler mais
+                      Ver relatório
                     </Button>
                   </div>
                 </Card>
