@@ -1,3 +1,8 @@
+export const VALID_CATEGORIES = ['geopolitica', 'macroeconomia', 'tendencias', 'mercados']
+export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export const SLUG_REGEX = /^[a-z0-9-]+$/
+
+export const sanitizeExcerpt = (excerpt = '') => excerpt
 /**
  * Validação de relatórios usando Zod
  * 
@@ -40,6 +45,22 @@ const sanitizeExcerpt = (excerpt = '') => excerpt
   .replace(/[\u2190-\u21FF]/g, '->')
   .replace(/\s+/g, ' ')
   .trim()
+  .slice(0, 250)
+
+export const generateSlug = (title = '') => title
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '')
+
+const normalizeTags = (tags) => {
+  if (!Array.isArray(tags)) return []
+  return tags
+    .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
+    .filter(Boolean)
+    .slice(0, 10)
+}
 
 /**
  * Valida se um relatório tem todos os campos obrigatórios e valores válidos
@@ -52,30 +73,43 @@ export const validateReport = (report) => {
     return false
   }
 
-  // Campos obrigatórios
-  const requiredFields = ['id', 'slug', 'title', 'excerpt', 'category', 'date']
-  const missingFields = requiredFields.filter(field => {
-    const value = report[field]
-    return value == null || value === ''
-  })
+export const calculateReadTime = (content) => {
+  if (!content || !content.body) return undefined
+  const text = content.type === 'html'
+    ? content.body.replace(/<[^>]*>/g, ' ')
+    : content.body
+  const words = text.split(/\s+/).filter(Boolean).length
+  if (!words) return undefined
+  return Math.max(1, Math.ceil(words / 200))
+}
 
-  if (missingFields.length > 0) {
-    console.warn(`Relatório inválido: campos obrigatórios faltando: ${missingFields.join(', ')}`)
+export const isNewReport = (dateString) => {
+  try {
+    const reportDate = new Date(dateString)
+    const now = new Date()
+    const daysDiff = (now.getTime() - reportDate.getTime()) / (1000 * 60 * 60 * 24)
+    return daysDiff <= 7
+  } catch {
     return false
   }
+}
 
-  // Validação de ID (UUID)
-  if (!UUID_REGEX.test(report.id)) {
-    console.warn(`Relatório inválido: ID não é um UUID válido: ${report.id}`)
-    return false
-  }
+const extractExcerpt = (report) => {
+  if (report.excerpt) return sanitizeExcerpt(report.excerpt)
 
-  // Validação de slug
-  if (!SLUG_REGEX.test(report.slug)) {
-    console.warn(`Relatório inválido: slug inválido: ${report.slug}`)
-    return false
-  }
+  const contentBody = report?.content?.body || report?.content || ''
+  if (typeof contentBody === 'string' && contentBody.trim().length > 0) {
+    const cleanText = contentBody
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
 
+    if (cleanText.length === 0) return ''
+
+    const sentences = cleanText.split(/(?<=[.!?])\s+/)
+    const firstSentences = sentences.slice(0, 3).join(' ')
+    const excerpt = firstSentences || cleanText.slice(0, 250)
+    return sanitizeExcerpt(excerpt)
   // Validação de título
   if (report.title.length < 3 || report.title.length > 240) {
     console.warn(`Relatório inválido: título deve ter entre 3 e 240 caracteres`)
@@ -89,19 +123,19 @@ export const validateReport = (report) => {
     return false
   }
 
-  // Validação de categoria
-  if (!VALID_CATEGORIES.includes(report.category)) {
-    console.warn(`Relatório inválido: categoria inválida: ${report.category}`)
-    return false
-  }
+  const titlePreview = String(report.title || '').slice(0, 250)
+  return sanitizeExcerpt(titlePreview)
+}
 
-  // Validação de data
-  const date = new Date(report.date)
-  if (isNaN(date.getTime())) {
-    console.warn(`Relatório inválido: data inválida: ${report.date}`)
-    return false
-  }
+export const validateReport = (report) => {
+  if (!report || typeof report !== 'object') return false
 
+  const requiredFields = ['id', 'slug', 'title', 'excerpt', 'category', 'date']
+  const missingFields = requiredFields.filter((field) => {
+    const value = report[field]
+    return value == null || value === ''
+  })
+  if (missingFields.length > 0) return false
   // Content obrigatorio (content ou contentUrl)
   if (!report.content && !report.contentUrl) {
     console.warn('Relatório inválido: envie content ou contentUrl')
@@ -114,43 +148,50 @@ export const validateReport = (report) => {
     return false
   }
 
-  // Validação opcional: readTime
-  if (report.readTime !== undefined && (typeof report.readTime !== 'number' || report.readTime < 1)) {
-    console.warn(`Relatório inválido: readTime deve ser um número positivo`)
-    return false
-  }
+  if (!UUID_REGEX.test(report.id)) return false
+  if (!SLUG_REGEX.test(report.slug)) return false
+  if (report.title.length < 3 || report.title.length > 240) return false
+  if (!sanitizeExcerpt(report.excerpt)) return false
 
-  // Validação opcional: content
+  if (!VALID_CATEGORIES.includes(report.category)) return false
+
+  const parsedDate = Date.parse(report.date)
+  if (Number.isNaN(parsedDate)) return false
+
+  if (!report.content && !report.contentUrl) return false
+
   if (report.content) {
-    if (!report.content.type || !['html', 'markdown'].includes(report.content.type)) {
-      console.warn(`Relatório inválido: content.type deve ser 'html' ou 'markdown'`)
-      return false
-    }
-    if (!report.content.body || typeof report.content.body !== 'string') {
-      console.warn(`Relatório inválido: content.body deve ser uma string`)
-      return false
-    }
+    if (!['html', 'markdown'].includes(report.content.type)) return false
+    if (typeof report.content.body !== 'string' || report.content.body.length === 0) return false
   }
 
-  // Validação opcional: contentUrl
   if (report.contentUrl) {
     try {
-      new URL(report.contentUrl)
+      const url = new URL(report.contentUrl)
+      if (!['http:', 'https:'].includes(url.protocol)) return false
     } catch {
-      console.warn(`Relatório inválido: contentUrl não é uma URL válida: ${report.contentUrl}`)
       return false
     }
   }
+
+  if (report.tags && (!Array.isArray(report.tags) || report.tags.length > 10)) return false
+  if (report.readTime !== undefined && (Number.isNaN(Number(report.readTime)) || Number(report.readTime) < 1)) return false
 
   return true
 }
 
-/**
- * Normaliza um relatório para o formato interno
- * @param {Object} report - Relatório a ser normalizado
- * @returns {Object} - Relatório normalizado
- */
 export const normalizeReport = (report) => {
+  const cleanedExcerpt = extractExcerpt(report)
+  const resolvedCategory = VALID_CATEGORIES.includes(report.category)
+    ? report.category
+    : 'tendencias'
+
+  return {
+    ...report,
+    slug: report.slug || generateSlug(report.title || ''),
+    excerpt: cleanedExcerpt,
+    category: resolvedCategory,
+    tags: normalizeTags(report.tags),
   const cleanedExcerpt = sanitizeExcerpt(report.excerpt)
   return {
     id: report.id,
@@ -161,78 +202,18 @@ export const normalizeReport = (report) => {
     tags: Array.isArray(report.tags) ? report.tags.slice(0, 10) : [],
     date: report.date,
     readTime: report.readTime || calculateReadTime(report.content),
-    content: report.content,
-    contentUrl: report.contentUrl || null,
-    thumbnail: report.thumbnail || null,
     author: report.author || 'Motor Inteligente',
-    isNew: isNewReport(report.date)
+    isNew: isNewReport(report.date),
   }
 }
 
-/**
- * Gera um slug a partir de um título
- * @param {string} title - Título do relatório
- * @returns {string} - Slug gerado
- */
-export const generateSlug = (title) => {
-  return title
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Remove acentos
-    .replace(/[^a-z0-9]+/g, '-') // Substitui espaços e caracteres especiais por hífen
-    .replace(/^-+|-+$/g, '') // Remove hífens no início e fim
-}
-
-/**
- * Calcula o tempo de leitura estimado
- * @param {Object} content - Objeto com type e body
- * @returns {number} - Tempo de leitura em minutos
- */
-export const calculateReadTime = (content) => {
-  if (!content || !content.body) return 5 // Padrão: 5 minutos
-
-  // Remove tags HTML se for HTML
-  const text = content.type === 'html' 
-    ? content.body.replace(/<[^>]*>/g, '') 
-    : content.body
-
-  // Conta palavras (aproximadamente 200 palavras por minuto)
-  const words = text.split(/\s+/).filter(word => word.length > 0).length
-  const minutes = Math.ceil(words / 200)
-
-  return Math.max(1, minutes) // Mínimo 1 minuto
-}
-
-/**
- * Verifica se um relatório é novo (publicado nos últimos 7 dias)
- * @param {string} dateString - Data do relatório (ISO 8601)
- * @returns {boolean} - true se for novo
- */
-export const isNewReport = (dateString) => {
-  try {
-    const reportDate = new Date(dateString)
-    const now = new Date()
-    const daysDiff = (now.getTime() - reportDate.getTime()) / (1000 * 60 * 60 * 24)
-    return daysDiff <= 7
-  } catch {
-    return false
-  }
-}
-
-/**
- * Valida e normaliza um array de relatórios
- * @param {Array} reports - Array de relatórios
- * @returns {Array} - Array de relatórios validados e normalizados
- */
 export const validateAndNormalizeReports = (reports) => {
-  if (!Array.isArray(reports)) {
-    console.warn('Reports deve ser um array')
-    return []
-  }
+  if (!Array.isArray(reports)) return []
 
   return reports
     .filter(validateReport)
     .map(normalizeReport)
-    .sort((a, b) => new Date(b.date) - new Date(a.date)) // Ordena por data (mais recente primeiro)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
 }
 
+export const buildExcerpt = extractExcerpt
