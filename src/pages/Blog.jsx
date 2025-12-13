@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Calendar, Tag, Zap, Loader2, AlertCircle } from 'lucide-react'
+import { Calendar, Tag, Zap, Loader2, AlertCircle, Clock, User } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
 import { validateAndNormalizeReports } from '../utils/validateReport'
 import { getReportsFromApi } from '../api/getReports'
 import { filterByCategory, formatDate, getCategoryEmoji } from '../utils/reportHelpers'
+import { RECOMMENDED_LIMIT } from '../constants'
 
 const filters = [
   { id: 'todos', label: 'Todos' },
@@ -29,6 +30,17 @@ const Blog = () => {
         setLoading(true)
         setError(null)
 
+        try {
+          const cached = localStorage.getItem('reports_cache')
+          if (cached) {
+            const parsed = JSON.parse(cached)
+            setPosts(parsed.reports || parsed)
+          }
+        } catch (cacheError) {
+          console.warn('Cache local indisponível', cacheError)
+        }
+
+        const { reports } = await getReportsFromApi(RECOMMENDED_LIMIT)
         const cached = localStorage.getItem('reports_cache')
         if (cached) {
           try {
@@ -42,7 +54,7 @@ const Blog = () => {
         const { reports } = await getReportsFromApi(60)
         const normalized = validateAndNormalizeReports(reports || [])
         setPosts(normalized)
-        localStorage.setItem('reports_cache', JSON.stringify(normalized))
+        localStorage.setItem('reports_cache', JSON.stringify({ reports: normalized }))
       } catch (err) {
         console.warn('Erro na API, carregando fallback:', err)
         setError('Não foi possível atualizar os relatórios agora.')
@@ -221,10 +233,25 @@ const Blog = () => {
                       <Calendar className="w-3 h-3" />
                       <span>{formatDate(post.date)}</span>
                     </div>
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center space-x-1 capitalize">
                       <Tag className="w-3 h-3" />
-                      <span className="capitalize">{post.category}</span>
+                      <span>{post.category}</span>
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-blue-gray mt-2">
+                    {post.readTime && (
+                      <div className="flex items-center space-x-1">
+                        <Clock className="w-3 h-3" />
+                        <span>{post.readTime} min</span>
+                      </div>
+                    )}
+                    {post.author && (
+                      <div className="flex items-center space-x-1">
+                        <User className="w-3 h-3" />
+                        <span>{post.author}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* CTA */}
@@ -257,4 +284,3 @@ const Blog = () => {
 }
 
 export default Blog
-

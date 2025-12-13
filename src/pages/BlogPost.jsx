@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Calendar, Tag, Zap, Clock, Download, ExternalLink, AlertCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Calendar, Tag, Zap, Clock, Download, ExternalLink, AlertCircle, Loader2, User } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
 import { validateAndNormalizeReports } from '../utils/validateReport'
 import { formatDate, getCategoryName } from '../utils/reportHelpers'
+import { getReportBySlug, getReportsFromApi } from '../api/getReports'
+import { RECOMMENDED_LIMIT } from '../constants'
 import { getReportsFromApi } from '../api/getReports'
 
 const BlogPost = () => {
@@ -21,6 +23,14 @@ const BlogPost = () => {
         setLoading(true)
         setError(null)
 
+        const cachedReport = await getReportBySlug(slug)
+        if (cachedReport) {
+          setPost(cachedReport)
+        }
+
+        const { reports } = await getReportsFromApi(RECOMMENDED_LIMIT)
+        const normalized = validateAndNormalizeReports(reports || [])
+        localStorage.setItem('reports_cache', JSON.stringify({ reports: normalized }))
         const cached = localStorage.getItem('reports_cache')
         if (cached) {
           try {
@@ -130,6 +140,7 @@ const BlogPost = () => {
               )}
               {post.author && (
                 <div className="flex items-center space-x-2">
+                  <User className="w-4 h-4" />
                   <span>Por {post.author}</span>
                 </div>
               )}
@@ -152,30 +163,26 @@ const BlogPost = () => {
             {/* Ações (Download/Link) */}
             {post.contentUrl && (
               <div className="flex flex-wrap gap-3">
-                {post.contentUrl && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    href={post.contentUrl}
-                    target="_blank"
-                    className="inline-flex items-center space-x-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Baixar PDF</span>
-                  </Button>
-                )}
-                {post.contentUrl && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    href={post.contentUrl}
-                    target="_blank"
-                    className="inline-flex items-center space-x-2"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    <span>Abrir em nova aba</span>
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  href={post.contentUrl}
+                  target="_blank"
+                  className="inline-flex items-center space-x-2"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Baixar PDF</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  href={post.contentUrl}
+                  target="_blank"
+                  className="inline-flex items-center space-x-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Abrir em nova aba</span>
+                </Button>
               </div>
             )}
           </motion.div>
@@ -241,4 +248,3 @@ const BlogPost = () => {
 }
 
 export default BlogPost
-
