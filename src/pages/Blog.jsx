@@ -66,6 +66,11 @@ const Blog = () => {
   const filteredPosts = filterByCategory(posts, activeFilter)
 
   const handleReadMore = (post) => {
+    if (post.contentUrl) {
+      window.open(post.contentUrl, '_blank', 'noopener,noreferrer')
+      return
+    }
+
     navigate(`/blog/${post.slug}`)
   }
 
