@@ -8,6 +8,7 @@ import { validateAndNormalizeReports } from '../utils/validateReport'
 import { formatDate, getCategoryName } from '../utils/reportHelpers'
 import { getReportBySlug, getReportsFromApi } from '../api/getReports'
 import { RECOMMENDED_LIMIT } from '../constants'
+import { getReportsFromApi } from '../api/getReports'
 
 const BlogPost = () => {
   const { slug } = useParams()
@@ -30,6 +31,22 @@ const BlogPost = () => {
         const { reports } = await getReportsFromApi(RECOMMENDED_LIMIT)
         const normalized = validateAndNormalizeReports(reports || [])
         localStorage.setItem('reports_cache', JSON.stringify({ reports: normalized }))
+        const cached = localStorage.getItem('reports_cache')
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached)
+            const cachedReport = parsed.find((item) => item.slug === slug)
+            if (cachedReport) {
+              setPost(cachedReport)
+            }
+          } catch (e) {
+            console.warn('Cache local inválido', e)
+          }
+        }
+
+        const { reports } = await getReportsFromApi(120)
+        const normalized = validateAndNormalizeReports(reports || [])
+        localStorage.setItem('reports_cache', JSON.stringify(normalized))
 
         const found = normalized.find((item) => item.slug === slug)
         if (!found) {

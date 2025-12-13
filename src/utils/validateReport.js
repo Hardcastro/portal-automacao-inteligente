@@ -3,6 +3,44 @@ export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
 export const SLUG_REGEX = /^[a-z0-9-]+$/
 
 export const sanitizeExcerpt = (excerpt = '') => excerpt
+/**
+ * Validação de relatórios usando Zod
+ * 
+ * Instalação: npm install zod
+ */
+
+// Se usar Zod (recomendado)
+// import { z } from 'zod'
+
+// Schema de validação
+// const ReportSchema = z.object({
+//   id: z.string().uuid(),
+//   slug: z.string().regex(/^[a-z0-9-]+$/),
+//   title: z.string().min(10).max(200),
+//   excerpt: z.string().min(50).max(300),
+//   category: z.enum(['geopolitica', 'macroeconomia', 'tendencias', 'mercados']),
+//   date: z.string().datetime(),
+//   tags: z.array(z.string()).max(10).optional(),
+//   readTime: z.number().int().positive().optional(),
+//   content: z.object({
+//     type: z.enum(['html', 'markdown']),
+//     body: z.string()
+//   }).optional(),
+//   contentUrl: z.string().url().optional(),
+//   thumbnail: z.string().url().optional(),
+//   author: z.string().optional(),
+//   generatedAt: z.string().datetime().optional(),
+//   version: z.string().optional()
+// })
+
+/**
+ * Validação manual (sem dependências externas)
+ */
+const VALID_CATEGORIES = ['geopolitica', 'macroeconomia', 'tendencias', 'mercados']
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const SLUG_REGEX = /^[a-z0-9-]+$/
+
+const sanitizeExcerpt = (excerpt = '') => excerpt
   .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
   .replace(/[\u2190-\u21FF]/g, '->')
   .replace(/\s+/g, ' ')
@@ -23,6 +61,17 @@ const normalizeTags = (tags) => {
     .filter(Boolean)
     .slice(0, 10)
 }
+
+/**
+ * Valida se um relatório tem todos os campos obrigatórios e valores válidos
+ * @param {Object} report - Objeto do relatório a ser validado
+ * @returns {boolean} - true se válido, false caso contrário
+ */
+export const validateReport = (report) => {
+  if (!report || typeof report !== 'object') {
+    console.warn('Relatório inválido: não é um objeto')
+    return false
+  }
 
 export const calculateReadTime = (content) => {
   if (!content || !content.body) return undefined
@@ -61,6 +110,17 @@ const extractExcerpt = (report) => {
     const firstSentences = sentences.slice(0, 3).join(' ')
     const excerpt = firstSentences || cleanText.slice(0, 250)
     return sanitizeExcerpt(excerpt)
+  // Validação de título
+  if (report.title.length < 3 || report.title.length > 240) {
+    console.warn(`Relatório inválido: título deve ter entre 3 e 240 caracteres`)
+    return false
+  }
+
+  // Validação de excerpt
+  const cleanedExcerpt = sanitizeExcerpt(report.excerpt)
+  if (!cleanedExcerpt) {
+    console.warn('Relatório inválido: excerpt vazio ou inválido')
+    return false
   }
 
   const titlePreview = String(report.title || '').slice(0, 250)
@@ -76,6 +136,17 @@ export const validateReport = (report) => {
     return value == null || value === ''
   })
   if (missingFields.length > 0) return false
+  // Content obrigatorio (content ou contentUrl)
+  if (!report.content && !report.contentUrl) {
+    console.warn('Relatório inválido: envie content ou contentUrl')
+    return false
+  }
+
+  // Validação opcional: tags
+  if (report.tags && (!Array.isArray(report.tags) || report.tags.length > 10)) {
+    console.warn(`Relatório inválido: tags deve ser um array com no máximo 10 itens`)
+    return false
+  }
 
   if (!UUID_REGEX.test(report.id)) return false
   if (!SLUG_REGEX.test(report.slug)) return false
@@ -121,6 +192,15 @@ export const normalizeReport = (report) => {
     excerpt: cleanedExcerpt,
     category: resolvedCategory,
     tags: normalizeTags(report.tags),
+  const cleanedExcerpt = sanitizeExcerpt(report.excerpt)
+  return {
+    id: report.id,
+    slug: report.slug || generateSlug(report.title),
+    title: report.title.trim(),
+    excerpt: cleanedExcerpt,
+    category: VALID_CATEGORIES.includes(report.category) ? report.category : 'tendencias',
+    tags: Array.isArray(report.tags) ? report.tags.slice(0, 10) : [],
+    date: report.date,
     readTime: report.readTime || calculateReadTime(report.content),
     author: report.author || 'Motor Inteligente',
     isNew: isNewReport(report.date),
