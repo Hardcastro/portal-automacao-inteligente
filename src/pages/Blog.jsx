@@ -229,24 +229,13 @@ const Blog = () => {
 
                   {/* CTA */}
                   <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                    {post.contentUrl && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="w-full sm:w-auto"
-                        href={post.contentUrl}
-                        target="_blank"
-                      >
-                        Abrir PDF
-                      </Button>
-                    )}
                     <Button
                       variant="outline"
                       size="sm"
                       className="w-full sm:w-auto"
                       onClick={() => handleReadMore(post)}
                     >
-                      {post.content ? 'Ler no portal' : 'Ler mais'}
+                      Ver relatório
                     </Button>
                   </div>
                 </Card>
