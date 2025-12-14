@@ -1,101 +1,119 @@
-import { REPORTS_API_URL, REPORTS_FALLBACK_URL, RECOMMENDED_LIMIT } from '../constants'
+import exampleData from '../data/reports.example.json'
+import { DEFAULT_AUTHOR, MAX_CACHE_ITEMS, RECOMMENDED_LIMIT, REPORTS_API_URL, REPORTS_FALLBACK_URL } from '../constants'
+import { validateAndNormalizeReports } from '../utils/validateReport'
 
-const STORAGE_KEY = 'reports_cache'
+const CACHE_KEY = 'reports_cache_v1'
 
-const appendLimitParam = (url, limit) => {
+const safeParse = (value) => {
   try {
-    const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
-    const parsed = new URL(url, base)
-    if (!parsed.searchParams.has('limit')) {
-      parsed.searchParams.set('limit', limit)
-    }
-    const fullUrl = parsed.toString()
-    const isAbsolute = /^https?:\/\//i.test(url)
-    return isAbsolute ? fullUrl : parsed.pathname + parsed.search + parsed.hash
-  } catch (error) {
-    console.warn('Não foi possível aplicar limit ao endpoint', url, error)
-    return url
-  }
-}
-
-const fetchFromUrl = async (url) => {
-  const response = await fetch(url, { cache: 'no-cache' })
-  if (!response.ok) {
-    throw new Error(`Falha ao buscar ${url}: ${response.status}`)
-  }
-  const data = await response.json()
-  if (data?.latest) {
-    return { reports: data.latest ? [data.latest] : [], meta: { lastUpdated: data.generatedAt || null } }
-  }
-  if (!data?.reports && !Array.isArray(data)) {
-    throw new Error(`Resposta inválida de ${url}`)
-  }
-  return data.reports ? data : { reports: data }
-}
-
-const saveCache = (payload) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...payload, cachedAt: Date.now() }))
-  } catch (error) {
-    console.warn('Não foi possível salvar cache local', error)
-  }
-}
-
-const loadCache = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    return parsed
-  } catch (error) {
-    console.warn('Não foi possível ler cache local', error)
+    return JSON.parse(value)
+  } catch {
     return null
   }
+}
+
+const buildUrlWithLimit = (baseUrl, limit) => {
+  if (!baseUrl) return null
+  try {
+    const url = new URL(baseUrl, window.location.origin)
+    if (limit) {
+      url.searchParams.set('limit', String(limit))
+    }
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
+const fetchFromSource = async (baseUrl, limit) => {
+  const url = buildUrlWithLimit(baseUrl, limit)
+  if (!url) return null
+
+  const response = await fetch(url, { cache: 'no-cache' })
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`)
+
+  const data = await response.json()
+  if (Array.isArray(data)) return { reports: data, meta: { total: data.length } }
+  return { reports: data.reports || [], meta: data.meta || {} }
+}
+
+const persistCache = (reports, meta = {}) => {
+  try {
+    const limitedReports = reports.slice(0, MAX_CACHE_ITEMS)
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ reports: limitedReports, meta, cachedAt: new Date().toISOString() }))
+  } catch {
+    // ignore cache errors
+  }
+}
+
+export const readCachedReports = () => {
+  try {
+    const cached = safeParse(localStorage.getItem(CACHE_KEY))
+    if (!cached || !Array.isArray(cached.reports)) return null
+    return cached
+  } catch {
+    return null
+  }
+}
+
+const normalizePayload = (reports) => {
+  const normalized = validateAndNormalizeReports(reports || [])
+  return normalized.map((report) => ({ ...report, author: report.author || DEFAULT_AUTHOR }))
 }
 
 export const getReportsFromApi = async (limit = RECOMMENDED_LIMIT) => {
   const sources = [REPORTS_API_URL, REPORTS_FALLBACK_URL].filter(Boolean)
 
   for (const source of sources) {
-    const endpoint = appendLimitParam(source, limit)
     try {
-      const data = await fetchFromUrl(endpoint)
-      saveCache({ reports: data.reports, meta: data.meta || {}, source: endpoint })
-      return { reports: data.reports, meta: data.meta || {}, source: endpoint }
-    } catch (error) {
-      console.warn('Falha ao carregar relatórios de', endpoint, error)
+      const { reports, meta } = await fetchFromSource(source, limit)
+      const normalized = normalizePayload(reports)
+      persistCache(normalized, meta)
+      return { reports: normalized, meta, source }
+    } catch (err) {
+      console.warn(`Falha ao buscar relatórios em ${source}:`, err)
     }
   }
 
-  const cached = loadCache()
-  if (cached?.reports) {
-    return { reports: cached.reports, meta: cached.meta || {}, source: 'cache' }
-  }
-
-  const localData = await import('../data/reports.example.json')
-  return { reports: localData.default.reports || [], meta: localData.default.meta || {}, source: 'local' }
+  const normalized = normalizePayload(exampleData.reports || [])
+  persistCache(normalized, { total: normalized.length })
+  return { reports: normalized, meta: { total: normalized.length }, source: 'example' }
 }
 
-export const getReportBySlug = async (slug) => {
+const buildSlugUrl = (baseUrl, slug) => {
+  if (!baseUrl) return null
+  try {
+    const url = new URL(baseUrl, window.location.origin)
+    const cleanPath = url.pathname.replace(/\/$/, '')
+    url.pathname = `${cleanPath}/${slug}`
+    url.search = ''
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
+export const getReportBySlug = async (slug, limit = RECOMMENDED_LIMIT) => {
   if (!slug) return null
 
-  const cache = loadCache()
-  const cachedReport = cache?.reports?.find((item) => item.slug === slug)
-  if (cachedReport) return cachedReport
+  const cached = readCachedReports()
+  const cachedMatch = cached?.reports?.find((item) => item.slug === slug)
+  if (cachedMatch) return cachedMatch
 
-  if (REPORTS_API_URL) {
+  const slugUrl = buildSlugUrl(REPORTS_API_URL, slug)
+  if (slugUrl) {
     try {
-      const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
-      const url = new URL(`${REPORTS_API_URL.replace(/\/$/, '')}/${slug}`, base)
-      const response = await fetch(url.toString(), { cache: 'no-cache' })
+      const response = await fetch(slugUrl, { cache: 'no-cache' })
       if (response.ok) {
-        const report = await response.json()
-        return report
+        const data = await response.json()
+        const normalized = normalizePayload([data])
+        if (normalized[0]) return normalized[0]
       }
-    } catch (error) {
-      console.warn('Não foi possível carregar relatório individual', error)
+    } catch (err) {
+      console.warn('Falha ao buscar relatório por slug na API', err)
     }
   }
 
-  return cachedReport || null
+  const { reports } = await getReportsFromApi(limit)
+  return reports.find((item) => item.slug === slug) || null
 }

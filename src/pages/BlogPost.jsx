@@ -4,7 +4,8 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Calendar, Tag, Zap, Clock, Download, ExternalLink, AlertCircle, Loader2, User } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
-import { validateAndNormalizeReports } from '../utils/validateReport'
+import { getReportBySlug, readCachedReports } from '../api/getReports'
+import { RECOMMENDED_LIMIT } from '../constants'
 import { formatDate, getCategoryName } from '../utils/reportHelpers'
 import { getReportBySlug, getReportsFromApi } from '../api/getReports'
 import { RECOMMENDED_LIMIT } from '../constants'
@@ -17,35 +18,39 @@ const BlogPost = () => {
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    let isMounted = true
+
     const fetchPost = async () => {
       try {
         setLoading(true)
         setError(null)
 
-        const cachedReport = await getReportBySlug(slug)
-        if (cachedReport) {
-          setPost(cachedReport)
+        const cached = readCachedReports()
+        const cachedMatch = cached?.reports?.find((item) => item.slug === slug)
+        if (cachedMatch && isMounted) {
+          setPost(cachedMatch)
         }
 
-        const { reports } = await getReportsFromApi(RECOMMENDED_LIMIT)
-        const normalized = validateAndNormalizeReports(reports || [])
-        localStorage.setItem('reports_cache', JSON.stringify({ reports: normalized }))
-
-        const found = normalized.find((item) => item.slug === slug)
-        if (!found) {
-          throw new Error('Relatório não encontrado')
+        const report = await getReportBySlug(slug, RECOMMENDED_LIMIT)
+        if (!isMounted) return
+        if (report) {
+          setPost(report)
+        } else {
+          setError('Não foi possível carregar este relatório.')
         }
-
-        setPost(found)
       } catch (err) {
         console.warn('Erro ao carregar relatório', err)
-        setError('Não foi possível carregar este relatório.')
+        if (isMounted) setError('Não foi possível carregar este relatório.')
       } finally {
-        setLoading(false)
+        if (isMounted) setLoading(false)
       }
     }
 
     fetchPost()
+
+    return () => {
+      isMounted = false
+    }
   }, [slug])
 
   if (loading) {

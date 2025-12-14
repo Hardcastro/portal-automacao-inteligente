@@ -4,10 +4,9 @@ import { motion } from 'framer-motion'
 import { Calendar, Tag, Zap, Loader2, AlertCircle, Clock, User } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
-import { validateAndNormalizeReports } from '../utils/validateReport'
-import { getReportsFromApi } from '../api/getReports'
-import { filterByCategory, formatDate, getCategoryEmoji } from '../utils/reportHelpers'
-import { RECOMMENDED_LIMIT } from '../constants'
+import { getReportsFromApi, readCachedReports } from '../api/getReports'
+import { RECOMMENDED_LIMIT, REPORTS_API_URL } from '../constants'
+import { filterByCategory, formatDate, getCategoryEmoji, getCategoryName } from '../utils/reportHelpers'
 
 const filters = [
   { id: 'todos', label: 'Todos' },
@@ -25,43 +24,37 @@ const Blog = () => {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const fetchReports = async () => {
+    let isMounted = true
+
+    const bootstrap = async () => {
+      setLoading(true)
+      setError(null)
+
+      const cached = readCachedReports()
+      if (cached?.reports?.length && isMounted) {
+        setPosts(cached.reports)
+      }
+
       try {
-        setLoading(true)
-        setError(null)
-
-        try {
-          const cached = localStorage.getItem('reports_cache')
-          if (cached) {
-            const parsed = JSON.parse(cached)
-            setPosts(parsed.reports || parsed)
-          }
-        } catch (cacheError) {
-          console.warn('Cache local indisponível', cacheError)
+        const { reports, source } = await getReportsFromApi(RECOMMENDED_LIMIT)
+        if (!isMounted) return
+        setPosts(reports)
+        if (source && source !== REPORTS_API_URL) {
+          setError('Não foi possível atualizar os relatórios agora.')
         }
-
-        const { reports } = await getReportsFromApi(RECOMMENDED_LIMIT)
-        const normalized = validateAndNormalizeReports(reports || [])
-        setPosts(normalized)
-        localStorage.setItem('reports_cache', JSON.stringify({ reports: normalized }))
       } catch (err) {
-        console.warn('Erro na API, carregando fallback:', err)
-        setError('Não foi possível atualizar os relatórios agora.')
-
-        try {
-          const localData = await import('../data/reports.example.json')
-          const normalized = validateAndNormalizeReports(localData.default.reports || [])
-          setPosts(normalized)
-        } catch (e) {
-          console.warn('Fallback local indisponível', e)
-          setPosts([])
-        }
+        console.warn('Erro ao carregar relatórios', err)
+        if (isMounted) setError('Não foi possível atualizar os relatórios agora.')
       } finally {
-        setLoading(false)
+        if (isMounted) setLoading(false)
       }
     }
 
-    fetchReports()
+    bootstrap()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const filteredPosts = filterByCategory(posts, activeFilter)
@@ -224,8 +217,20 @@ const Blog = () => {
                     </div>
                     <div className="flex items-center space-x-1 capitalize">
                       <Tag className="w-3 h-3" />
-                      <span>{post.category}</span>
+                      <span className="capitalize">{getCategoryName(post.category)}</span>
                     </div>
+                    {post.readTime && (
+                      <div className="flex items-center space-x-1">
+                        <Clock className="w-3 h-3" />
+                        <span>{post.readTime} min</span>
+                      </div>
+                    )}
+                    {post.author && (
+                      <div className="flex items-center space-x-1">
+                        <User className="w-3 h-3" />
+                        <span>{post.author}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between text-xs text-blue-gray mt-2">
