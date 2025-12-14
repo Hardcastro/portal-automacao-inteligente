@@ -60,6 +60,11 @@ const Blog = () => {
   const filteredPosts = filterByCategory(posts, activeFilter)
 
   const handleReadMore = (post) => {
+    if (post.contentUrl) {
+      window.open(post.contentUrl, '_blank', 'noopener,noreferrer')
+      return
+    }
+
     navigate(`/blog/${post.slug}`)
   }
 
@@ -210,7 +215,7 @@ const Blog = () => {
                       <Calendar className="w-3 h-3" />
                       <span>{formatDate(post.date)}</span>
                     </div>
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center space-x-1 capitalize">
                       <Tag className="w-3 h-3" />
                       <span className="capitalize">{getCategoryName(post.category)}</span>
                     </div>
@@ -228,12 +233,27 @@ const Blog = () => {
                     )}
                   </div>
 
+                  <div className="flex items-center justify-between text-xs text-blue-gray mt-2">
+                    {post.readTime && (
+                      <div className="flex items-center space-x-1">
+                        <Clock className="w-3 h-3" />
+                        <span>{post.readTime} min</span>
+                      </div>
+                    )}
+                    {post.author && (
+                      <div className="flex items-center space-x-1">
+                        <User className="w-3 h-3" />
+                        <span>{post.author}</span>
+                      </div>
+                    )}
+                  </div>
+
                   {/* CTA */}
-                  <div className="mt-4">
+                  <div className="mt-4 flex flex-col sm:flex-row gap-3">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full"
+                      className="w-full sm:w-auto"
                       onClick={() => handleReadMore(post)}
                     >
                       Ver relatório
@@ -258,4 +278,3 @@ const Blog = () => {
 }
 
 export default Blog
-
