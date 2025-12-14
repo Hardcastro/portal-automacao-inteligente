@@ -8,7 +8,7 @@ import { getReportBySlug, readCachedReports } from '../api/getReports'
 import { RECOMMENDED_LIMIT } from '../constants'
 import { formatDate, getCategoryName } from '../utils/reportHelpers'
 import { getReportBySlug, getReportsFromApi } from '../api/getReports'
-import { RECOMMENDED_LIMIT } from '../constants'
+
 
 const BlogPost = () => {
   const { slug } = useParams()
