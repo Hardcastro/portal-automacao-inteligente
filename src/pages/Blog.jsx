@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Calendar, Tag, Zap, Loader2, AlertCircle } from 'lucide-react'
+import { Zap, Loader2, AlertCircle, Search, Filter, Database } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
-import { validateAndNormalizeReports } from '../utils/validateReport'
-import { filterByCategory, formatDate, getCategoryEmoji } from '../utils/reportHelpers'
+import ReportCard from '../components/ReportCard'
+import { getReportBySlug, getReports, readCachedReports } from '../api/getReports'
+import { RECOMMENDED_LIMIT, REPORTS_API_URL } from '../constants'
+import { filterByCategory, searchReports } from '../utils/reportHelpers'
 
 const filters = [
   { id: 'todos', label: 'Todos' },
@@ -20,61 +22,60 @@ const Blog = () => {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [usedFallback, setUsedFallback] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+    let isMounted = true
 
-        // Estratégia A: API em tempo real
-        const response = await fetch('/api/reports?limit=60', { cache: 'no-cache' })
-        if (!response.ok) throw new Error('Falha ao carregar relatórios')
-        const data = await response.json()
-        const normalized = validateAndNormalizeReports(data.reports || [])
-        setPosts(normalized)
-        localStorage.setItem('reports_cache', JSON.stringify(normalized))
-      } catch (err) {
-        console.warn('Erro na API, carregando fallback:', err)
-        setError('Não foi possível atualizar os relatórios agora.')
-        await loadFallback()
-      } finally {
-        setLoading(false)
+    const bootstrap = async () => {
+      setLoading(true)
+      setError(null)
+
+      const cached = readCachedReports()
+      if (cached?.reports?.length && isMounted) {
+        setPosts(cached.reports)
       }
-    }
 
-    const loadFallback = async () => {
-      // 1) Cache local
-      const cached = localStorage.getItem('reports_cache')
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached)
-          setPosts(parsed)
-          return
-        } catch (e) {
-          console.warn('Falha ao ler cache local', e)
+      try {
+        const { reports, source, meta } = await getReports(RECOMMENDED_LIMIT)
+        if (!isMounted) return
+        setPosts(reports)
+        const fallback = source && source !== REPORTS_API_URL
+        setUsedFallback(Boolean(meta?.isFallback || fallback))
+        if (fallback) {
+          setError('Não foi possível atualizar os relatórios agora.')
         }
-      }
-
-      // 2) JSON local gerado via n8n/commit
-      try {
-        const localData = await import('../data/reports.example.json')
-        const normalized = validateAndNormalizeReports(localData.default.reports || [])
-        setPosts(normalized)
-      } catch (e) {
-        console.warn('Fallback local indisponível', e)
-        setPosts([])
+      } catch (err) {
+        console.warn('Erro ao carregar relatórios', err)
+        if (isMounted) setError('Não foi possível atualizar os relatórios agora.')
+      } finally {
+        if (isMounted) setLoading(false)
       }
     }
 
-    fetchReports()
+    bootstrap()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
-  const filteredPosts = filterByCategory(posts, activeFilter)
+  const filteredPosts = useMemo(() => {
+    const byCategory = filterByCategory(posts, activeFilter)
+    return searchReports(byCategory, searchQuery)
+  }, [posts, activeFilter, searchQuery])
 
   const handleReadMore = (post) => {
+    console.info('[analytics] click ver relatorio', { slug: post.slug })
     navigate(`/blog/${post.slug}`)
+  }
+
+  const handlePrefetch = (post) => {
+    getReportBySlug(post.slug, RECOMMENDED_LIMIT).catch(() => {
+      console.warn('Falha ao pré-carregar relatório', post.slug)
+    })
   }
 
   if (loading) {
@@ -133,21 +134,42 @@ const Blog = () => {
       {/* Filtros */}
       <section className="relative py-8 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
         <div className="section-container">
-          <div className="flex flex-wrap justify-center gap-3">
-            {filters.map((filter) => (
-              <button
-                key={filter.id}
-                onClick={() => setActiveFilter(filter.id)}
-                className={`px-6 py-2 rounded-lg font-medium transition-all duration-300 ${
-                  activeFilter === filter.id
-                    ? 'bg-cyan-luminous text-space-blue glow-cyan'
-                    : 'bg-white/5 text-blue-gray hover:bg-white/10 hover:text-mist-gray'
-                }`}
-              >
-                {filter.label}
-              </button>
-            ))}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] gap-4 items-center">
+            <div className="flex flex-wrap justify-center gap-3">
+              {filters.map((filter) => (
+                <button
+                  key={filter.id}
+                  onClick={() => setActiveFilter(filter.id)}
+                  className={`px-6 py-2 rounded-lg font-medium transition-all duration-300 flex items-center gap-2 ${
+                    activeFilter === filter.id
+                      ? 'bg-cyan-luminous text-space-blue glow-cyan'
+                      : 'bg-white/5 text-blue-gray hover:bg-white/10 hover:text-mist-gray'
+                  }`}
+                  aria-pressed={activeFilter === filter.id}
+                >
+                  <Filter className="w-4 h-4" aria-hidden />
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+            <label className="flex items-center gap-3 bg-white/5 rounded-lg px-4 py-2 text-blue-gray focus-within:ring-2 focus-within:ring-cyan-luminous">
+              <Search className="w-4 h-4" aria-hidden />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por título, resumo ou tag"
+                className="bg-transparent flex-1 outline-none text-sm"
+                aria-label="Buscar relatórios"
+              />
+            </label>
           </div>
+          {usedFallback && (
+            <div className="mt-4 flex items-center gap-2 text-amber-200 text-sm">
+              <Database className="w-4 h-4" />
+              <span>Exibindo dados do fallback enquanto a API principal está indisponível.</span>
+            </div>
+          )}
         </div>
       </section>
 
@@ -161,87 +183,9 @@ const Blog = () => {
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.1, duration: 0.6 }}
+                transition={{ delay: index * 0.05, duration: 0.4 }}
               >
-                <Card className="h-full flex flex-col">
-                  {/* Capa ou Thumbnail */}
-                  {post.thumbnail ? (
-                    <div className="h-48 rounded-lg mb-4 overflow-hidden">
-                      <img
-                        src={post.thumbnail}
-                        alt={post.title}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-48 bg-gradient-to-br from-cyan-luminous/20 to-electric-blue/20 rounded-lg mb-4 flex items-center justify-center">
-                      <div className="text-4xl opacity-50">
-                        {getCategoryEmoji(post.category)}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Badges */}
-                  <div className="mb-3 flex items-center gap-2 flex-wrap">
-                    {post.isNew && (
-                      <span className="inline-flex items-center space-x-1 px-2 py-1 bg-neon-green/20 text-neon-green text-xs font-semibold rounded">
-                        <span>✨</span>
-                        <span>Novo</span>
-                      </span>
-                    )}
-                    <span className="inline-flex items-center space-x-1 px-2 py-1 bg-cyan-luminous/10 text-cyan-luminous text-xs font-semibold rounded">
-                      <Zap className="w-3 h-3" />
-                      <span>Gerado pelo Motor</span>
-                    </span>
-                  </div>
-
-                  {/* Conteúdo */}
-                  <h2 className="text-xl font-bold text-mist-gray mb-3 line-clamp-2">
-                    {post.title}
-                  </h2>
-                  <p className="text-blue-gray text-sm mb-4 flex-grow line-clamp-3">
-                    {post.excerpt}
-                  </p>
-
-                  {/* Tags */}
-                  {post.tags && post.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-4">
-                      {post.tags.slice(0, 3).map((tag, idx) => (
-                        <span
-                          key={`${post.id}-tag-${idx}`}
-                          className="px-2 py-1 bg-white/5 text-blue-gray text-xs rounded"
-                        >
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Meta */}
-                  <div className="flex items-center justify-between text-xs text-blue-gray pt-4 border-t border-white/10">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-3 h-3" />
-                      <span>{formatDate(post.date)}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Tag className="w-3 h-3" />
-                      <span className="capitalize">{post.category}</span>
-                    </div>
-                  </div>
-
-                  {/* CTA */}
-                  <div className="mt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => handleReadMore(post)}
-                    >
-                      Ler mais
-                    </Button>
-                  </div>
-                </Card>
+                <ReportCard report={post} onReadMore={handleReadMore} onPrefetch={handlePrefetch} />
               </motion.div>
             ))}
           </div>
