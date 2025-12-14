@@ -89,6 +89,12 @@ export const validateNormalizedReport = (report) => {
 
 export const normalizeIncomingReports = (body) => {
   if (!body) return []
+
+  const source = Object.prototype.hasOwnProperty.call(body, 'data') ? body.data : body
+
+  if (Array.isArray(source)) return source
+  if (source && Array.isArray(source.reports)) return source.reports
+  if (source && typeof source === 'object') return [source]
   if (Array.isArray(body)) return body
   if (Array.isArray(body.reports)) return body.reports
   if (typeof body === 'object') return [body]
