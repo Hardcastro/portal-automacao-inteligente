@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Calendar, Tag, Zap, Clock, Download, ExternalLink, AlertCircle, Loader2, User } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
-import { getReportBySlug, readCachedReports } from '../api/getReports'
+import { getReportBySlug, getReports, readCachedReports } from '../api/getReports'
 import { RECOMMENDED_LIMIT } from '../constants'
 import { formatDate, getCategoryName } from '../utils/reportHelpers'
 import { getReportsFromApi } from '../api/getReports'
@@ -36,7 +36,13 @@ const BlogPost = () => {
         if (report) {
           setPost(report)
         } else {
-          setError('Não foi possível carregar este relatório.')
+          const { reports } = await getReports(RECOMMENDED_LIMIT)
+          const fallbackMatch = reports.find((item) => item.slug === slug)
+          if (fallbackMatch) {
+            setPost(fallbackMatch)
+          } else {
+            setError('Não foi possível carregar este relatório.')
+          }
         }
       } catch (err) {
         console.warn('Erro ao carregar relatório', err)
@@ -52,6 +58,12 @@ const BlogPost = () => {
       isMounted = false
     }
   }, [slug])
+
+  useEffect(() => {
+    if (post) {
+      console.info('[analytics] view blogpost', { slug: post.slug })
+    }
+  }, [post])
 
   if (loading) {
     return (
@@ -104,6 +116,16 @@ const BlogPost = () => {
                 <Zap className="w-4 h-4" />
                 <span>Gerado pelo Motor Inteligente</span>
               </span>
+              {post.isNew && (
+                <span className="px-3 py-1 bg-neon-green/15 text-neon-green text-sm font-medium rounded-full">
+                  🆕 Novo
+                </span>
+              )}
+              {post.isFallback && (
+                <span className="px-3 py-1 bg-amber-500/15 text-amber-200 text-sm font-medium rounded-full flex items-center gap-1">
+                  ⚠️ <span>via fallback</span>
+                </span>
+              )}
               <span className="px-3 py-1 bg-white/10 text-mist-gray text-sm font-medium rounded-full capitalize">
                 {getCategoryName(post.category)}
               </span>
