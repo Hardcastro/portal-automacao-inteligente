@@ -6,7 +6,7 @@ import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
 import ReportCard from '../components/ReportCard'
 import { getReportBySlug, getReports, readCachedReports } from '../api/getReports'
-import { RECOMMENDED_LIMIT } from '../constants'
+import { RECOMMENDED_LIMIT, REPORTS_API_URL } from '../constants'
 import { filterByCategory, searchReports } from '../utils/reportHelpers'
 
 const filters = [
@@ -39,11 +39,11 @@ const Blog = () => {
       }
 
       try {
-        const { reports, meta } = await getReports(RECOMMENDED_LIMIT)
+        const { reports, source, meta } = await getReports(RECOMMENDED_LIMIT)
         if (!isMounted) return
         setPosts(reports)
-        const fallback = Boolean(meta?.isFallback)
-        setUsedFallback(fallback)
+        const fallback = source && source !== REPORTS_API_URL
+        setUsedFallback(Boolean(meta?.isFallback || fallback))
         if (fallback) {
           setError('Não foi possível atualizar os relatórios agora.')
         }
