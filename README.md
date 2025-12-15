@@ -1,142 +1,91 @@
-# Portal de Automação Inteligente
+# Portal Automação Inteligente
 
-Portal moderno e imersivo focado em automação inteligente, com design tecnológico profundo e 8 páginas completas.
+SPA em React/Vite para exibir relatórios estratégicos consumidos de uma API externa (`/api/reports`) com fallback para snapshots JSON e cache em `localStorage`. O projeto foi pensado para ser servido como site estático (Render, GitHub Pages, etc.) enquanto consulta um backend já provisionado.
 
-## 🚀 Tecnologias
+## ✨ Principais recursos
+- **Blog dinâmico**: carrega até 60 relatórios recentes via `getReports()` (API → fallback → exemplo local) e usa `localStorage` para acelerar navegações.
+- **Fallback resiliente**: suporte a `latest.json` (objeto único) ou `reports.json` (lista completa), convertendo-os para arrays consumíveis pelo front-end.
+- **Validação/normalização**: campos obrigatórios (id, slug, title, excerpt, category, date e `content` ou `contentUrl`) são normalizados no cliente, com autor padrão e marcação de itens recentes.
+- **Cache-first no detalhe**: `getReportBySlug` reaproveita cache antes de buscar a API, garantindo leitura mesmo em cenários offline.
+- **UI consistente**: cards reutilizáveis com badges de categoria, indicador de fallback, tempo de leitura, autor e selo “novo” para publicações recentes.
 
-- **React 18** - Framework frontend
-- **Vite** - Build tool e dev server
-- **Tailwind CSS** - Estilização utilitária
-- **Framer Motion** - Animações fluidas
-- **React Router** - Roteamento
-- **Lucide React** - Ícones modernos
+## 🧰 Stack
+- React 18 + Vite
+- Tailwind CSS
+- React Router
+- Framer Motion
+- Lucide React
 
-## 🎨 Design
-
-### Paleta de Cores
-
-- **Fundo**: Azul Escuro Espacial (#0A0F1F), Grafite Frio (#12151C)
-- **Destaques**: Ciano Luminoso (#00E5FF), Azul Elétrico (#1E90FF)
-- **Tipografia**: Cinza Nevoado (#D9E2EC), Cinza Azulado (#A1AFC1)
-- **Premium**: Aço Inoxidável (#C0C7D1), Verde Neônico Suave (#7CFFB2)
-
-### Características Visuais
-
-- Design imersivo com profundidade tridimensional
-- Efeitos de glow (brilho) em elementos importantes
-- Animações sutis e transições suaves
-- Glassmorphism (efeito de vidro) em componentes
-- Partículas animadas em backgrounds
-- Responsivo e mobile-first
-
-## 📁 Estrutura do Projeto
+## 🔧 Configuração de ambiente
+Defina as variáveis em `.env` ou no provider de hosting antes do build:
 
 ```
-src/
-├── components/
-│   ├── Layout/
-│   │   ├── Header.jsx      # Navegação principal
-│   │   ├── Footer.jsx      # Rodapé
-│   │   └── PageContainer.jsx
-│   └── UI/
-│       ├── Button.jsx      # Botões com variantes
-│       ├── Card.jsx        # Cards com efeitos
-│       ├── GlowEffect.jsx  # Efeitos de brilho
-│       ├── ParticleBackground.jsx  # Partículas animadas
-│       └── PipelineVisualization.jsx  # Visualização de pipelines
-├── pages/
-│   ├── Home.jsx            # Página inicial
-│   ├── Automacao.jsx       # Automação Inteligente
-│   ├── Blog.jsx            # Blog Estratégico
-│   ├── Dashboard.jsx       # Dashboard Estratégico
-│   ├── ComoAutomatizamos.jsx  # Case study
-│   ├── Sobre.jsx           # Manifesto/Sobre
-│   ├── Contato.jsx        # Contato/WhatsApp
-│   └── Cliente.jsx        # Área do Cliente (placeholder)
-├── styles/
-│   └── globals.css        # Estilos globais e utilitários
-├── App.jsx                # Router principal
-└── main.jsx               # Entry point
+VITE_REPORTS_API_URL=https://<seu-backend>/api/reports
+VITE_REPORTS_FALLBACK_URL=https://<seu-backend>/public/latest.json  # ou /public/reports.json
 ```
 
-## 🛠️ Instalação
+Se as variáveis não estiverem presentes, o app usa apenas cache prévio e `src/data/reports.example.json` como último recurso.
 
-1. Instale as dependências:
+## 🚀 Como rodar
+1) Instalar dependências
 ```bash
 npm install
 ```
 
-2. Inicie o servidor de desenvolvimento:
+2) Ambiente de desenvolvimento (front-end)
 ```bash
 npm run dev
 ```
+Acesse http://localhost:5173
 
-3. Acesse no navegador:
-```
-http://localhost:5173
-```
-
-## 📦 Build para Produção
-
+3) Build de produção do front-end
 ```bash
 npm run build
 ```
 
-Os arquivos otimizados estarão em `dist/`.
-
-## 🌐 Publicação no GitHub Pages
-
-1. Certifique-se de que o `base` do Vite está apontando para o nome do repositório quando o build for feito pelo GitHub Actions (já configurado em `vite.config.js` com `VITE_BASE_PATH`).
-2. O workflow `Deploy to GitHub Pages` em `.github/workflows/deploy.yml` já está pronto. Ele:
-   - usa Node 20;
-   - prepara o ambiente do Pages com `actions/configure-pages`;
-   - executa `npm ci` e `npm run build` com `VITE_BASE_PATH=/nome-do-repositorio/`;
-   - publica automaticamente a pasta `dist/` no ambiente `github-pages`.
-3. No GitHub, acesse **Settings → Pages** e selecione a opção **Deploy from GitHub Actions**.
-4. Faça um push na branch `main` (ou dispare manualmente o workflow em **Actions → Deploy to GitHub Pages → Run workflow**). Ao final da execução, o link público aparecerá nos detalhes do deploy.
-5. Se usar domínio personalizado, aponte o DNS para o GitHub Pages e configure o domínio em **Settings → Pages**; nesse caso, você pode deixar `VITE_BASE_PATH` como `/` se o site estiver na raiz do domínio.
-
-### Subindo as alterações para a branch `main`
-
-Se o trabalho estiver em outra branch local (ex.: `work`), você pode enviar o histórico atual diretamente para a branch principal no GitHub com:
-
+4) Servir SPA + API em Node
 ```bash
-git push origin HEAD:main
+npm start
+```
+O servidor HTTP usa os arquivos já gerados em `dist/`, expõe `/api/reports`, `/api/reports/:slug` e publica snapshots em `/public/reports.json` e `/public/latest.json`.
+
+5) Pré-visualizar o build (apenas front-end)
+```bash
+npm run preview
 ```
 
-Isso cria ou atualiza a `main` remota com o estado atual do repositório. Depois do push, o workflow de Pages será acionado automaticamente.
+## 📦 Estrutura relevante
+```
+src/
+├── api/getReports.js         # Fetch com fallback + cache
+├── components/ReportCard.jsx # Card reutilizável da listagem
+├── pages/Blog.jsx            # Lista e filtros de relatórios
+├── pages/BlogPost.jsx        # Página de detalhe (HTML ou PDF)
+├── utils/normalizeReport.js  # Normalização cliente
+├── utils/validateReport.js   # Validação/cálculo de metadados
+└── data/reports.example.json # Exemplo local
+```
 
-## 🎯 Páginas
+## 🌐 Contrato esperado da API
+Endpoint `GET /api/reports?limit=60` deve retornar `{ reports: Report[], meta }`. Cada `Report` precisa de:
+- Obrigatórios: `id` (uuid), `slug`, `title`, `excerpt`, `category`, `date`, e **`content` ou `contentUrl`**.
+- Opcionais: `tags[]`, `readTime`, `thumbnail`, `author`, `metadata`, `pdfUrl` (normalizado para `contentUrl`).
 
-1. **Home** (`/`) - Hero imersivo, motor inteligente, casos de uso
-2. **Automação** (`/automacao`) - Explicação visual, motor IA, demonstração
-3. **Blog** (`/blog`) - Grid de posts com filtros
-4. **Dashboard** (`/dashboard`) - Indicadores estratégicos em tempo real
-5. **Como Automatizamos** (`/como-automatizamos`) - Case study visual
-6. **Sobre** (`/sobre`) - Manifesto e filosofia
-7. **Contato** (`/contato`) - CTA WhatsApp e formulário
-8. **Cliente** (`/cliente`) - Área restrita (em desenvolvimento)
+O front converte respostas alternativas:
+- Arrays diretos (`[report]`)
+- Objetos `{ reports: [...] }`
+- Snapshots `{ latest: {...} }`
 
-## 🔧 Configuração
+## 📊 Fluxo de dados e cache
+1. Busca em `VITE_REPORTS_API_URL` com limite recomendado (60).
+2. Se falhar, tenta `VITE_REPORTS_FALLBACK_URL` (aceita `latest.json` ou `reports.json`).
+3. Se ainda falhar, usa `reports.example.json`.
+4. Resultados válidos são armazenados em `localStorage` para uso posterior e para pré-carregar slugs específicos.
 
-### Personalizar Cores
+## ✅ Boas práticas
+- Mantenha as URLs de API e fallback acessíveis pela mesma origem do front para evitar CORS em desenvolvimento.
+- Publique também um `reports.json` completo como fallback para garantir lista cheia quando a API estiver indisponível.
+- Garanta que cada relatório tenha `excerpt` e `date` válidos para não ser descartado pelo validador do cliente.
 
-Edite `tailwind.config.js` para ajustar a paleta de cores.
-
-### Adicionar Animações
-
-Animações customizadas podem ser adicionadas em `tailwind.config.js` (keyframes) ou `src/styles/globals.css`.
-
-## 📝 Próximos Passos
-
-- [ ] Integração com backend para dashboard real-time
-- [ ] Integração WhatsApp (WAHA + n8n)
-- [ ] Sistema de autenticação para área do cliente
-- [ ] CMS para blog automatizado
-- [ ] Otimizações de performance
-- [ ] Testes automatizados
-
-## 📄 Licença
-
-Este projeto é privado e proprietário.
-
+## 📜 Licença
+Projeto de uso interno. Consulte os responsáveis antes de redistribuir.

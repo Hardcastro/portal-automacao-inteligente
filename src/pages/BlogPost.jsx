@@ -4,7 +4,8 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Calendar, Tag, Zap, Clock, Download, ExternalLink, AlertCircle, Loader2 } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
-import { validateAndNormalizeReports } from '../utils/validateReport'
+import { getReportBySlug, getReports, readCachedReports } from '../api/getReports'
+import { RECOMMENDED_LIMIT } from '../constants'
 import { formatDate, getCategoryName } from '../utils/reportHelpers'
 
 const BlogPost = () => {
@@ -15,35 +16,52 @@ const BlogPost = () => {
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    let isMounted = true
+
     const fetchPost = async () => {
       try {
         setLoading(true)
         setError(null)
 
-        // Estratégia A: API em tempo real
-        const response = await fetch(`/api/reports/${slug}`, { cache: 'no-cache' })
-        if (response.ok) {
-          const data = await response.json()
-          setPost(data)
-          return
+        const cached = readCachedReports()
+        const cachedMatch = cached?.reports?.find((item) => item.slug === slug)
+        if (cachedMatch && isMounted) {
+          setPost(cachedMatch)
         }
 
-        // Estratégia B: fallback local (JSON commitado)
-        const localData = await import('../data/reports.example.json')
-        const normalized = validateAndNormalizeReports(localData.default.reports || [])
-        const found = normalized.find((item) => item.slug === slug)
-        if (!found) throw new Error('Relatório não encontrado')
-        setPost(found)
+        const report = await getReportBySlug(slug, RECOMMENDED_LIMIT)
+        if (!isMounted) return
+        if (report) {
+          setPost(report)
+        } else {
+          const { reports } = await getReports(RECOMMENDED_LIMIT)
+          const fallbackMatch = reports.find((item) => item.slug === slug)
+          if (fallbackMatch) {
+            setPost(fallbackMatch)
+          } else {
+            setError('Não foi possível carregar este relatório.')
+          }
+        }
       } catch (err) {
         console.warn('Erro ao carregar relatório', err)
-        setError('Não foi possível carregar este relatório.')
+        if (isMounted) setError('Não foi possível carregar este relatório.')
       } finally {
-        setLoading(false)
+        if (isMounted) setLoading(false)
       }
     }
 
     fetchPost()
+
+    return () => {
+      isMounted = false
+    }
   }, [slug])
+
+  useEffect(() => {
+    if (post) {
+      console.info('[analytics] view blogpost', { slug: post.slug })
+    }
+  }, [post])
 
   if (loading) {
     return (
@@ -96,6 +114,16 @@ const BlogPost = () => {
                 <Zap className="w-4 h-4" />
                 <span>Gerado pelo Motor Inteligente</span>
               </span>
+              {post.isNew && (
+                <span className="px-3 py-1 bg-neon-green/15 text-neon-green text-sm font-medium rounded-full">
+                  🆕 Novo
+                </span>
+              )}
+              {post.isFallback && (
+                <span className="px-3 py-1 bg-amber-500/15 text-amber-200 text-sm font-medium rounded-full flex items-center gap-1">
+                  ⚠️ <span>via fallback</span>
+                </span>
+              )}
               <span className="px-3 py-1 bg-white/10 text-mist-gray text-sm font-medium rounded-full capitalize">
                 {getCategoryName(post.category)}
               </span>
