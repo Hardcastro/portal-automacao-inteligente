@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Calendar, Tag, Zap, Clock, Download, ExternalLink, AlertCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Calendar, Tag, Zap, Clock, Download, ExternalLink, AlertCircle, Loader2, User } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
 import { getReportBySlug, getReports, readCachedReports } from '../api/getReports'
 import { RECOMMENDED_LIMIT } from '../constants'
 import { formatDate, getCategoryName } from '../utils/reportHelpers'
+import { getReportsFromApi } from '../api/getReports'
+
 
 const BlogPost = () => {
   const { slug } = useParams()
@@ -148,6 +150,7 @@ const BlogPost = () => {
               )}
               {post.author && (
                 <div className="flex items-center space-x-2">
+                  <User className="w-4 h-4" />
                   <span>Por {post.author}</span>
                 </div>
               )}
@@ -170,30 +173,26 @@ const BlogPost = () => {
             {/* Ações (Download/Link) */}
             {post.contentUrl && (
               <div className="flex flex-wrap gap-3">
-                {post.contentUrl && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    href={post.contentUrl}
-                    target="_blank"
-                    className="inline-flex items-center space-x-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Baixar PDF</span>
-                  </Button>
-                )}
-                {post.contentUrl && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    href={post.contentUrl}
-                    target="_blank"
-                    className="inline-flex items-center space-x-2"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    <span>Abrir em nova aba</span>
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  href={post.contentUrl}
+                  target="_blank"
+                  className="inline-flex items-center space-x-2"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Baixar PDF</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  href={post.contentUrl}
+                  target="_blank"
+                  className="inline-flex items-center space-x-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Abrir em nova aba</span>
+                </Button>
               </div>
             )}
           </motion.div>
@@ -259,4 +258,3 @@ const BlogPost = () => {
 }
 
 export default BlogPost
-
