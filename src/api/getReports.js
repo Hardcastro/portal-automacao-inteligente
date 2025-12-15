@@ -34,6 +34,10 @@ const fetchFromSource = async (baseUrl, limit) => {
   if (!response.ok) throw new Error(`Request failed: ${response.status}`)
 
   const data = await response.json()
+  if (data && typeof data === 'object' && 'latest' in data) {
+    const reports = data.latest ? [data.latest] : []
+    return { reports, meta: { ...(data.meta || {}), total: reports.length } }
+  }
   if (Array.isArray(data)) return { reports: data, meta: { total: data.length } }
   return { reports: data.reports || [], meta: data.meta || {} }
 }
