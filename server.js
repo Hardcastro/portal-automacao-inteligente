@@ -33,6 +33,13 @@ const getContentType = (filePath) => {
   return map[ext] || 'application/octet-stream'
 }
 
+const isPathInside = (targetPath, baseDir) => {
+  const resolvedBase = path.resolve(baseDir)
+  const resolvedTarget = path.resolve(targetPath)
+
+  return resolvedTarget === resolvedBase || resolvedTarget.startsWith(`${resolvedBase}${path.sep}`)
+}
+
 const serveStaticFile = async (res, filePath) => {
   try {
     const stat = await fsPromises.stat(filePath)
@@ -48,19 +55,36 @@ const serveStaticFile = async (res, filePath) => {
 }
 
 const handleStaticRequest = async (req, res, pathname) => {
-  const decodedPath = decodeURIComponent(pathname)
+  let decodedPath
+  try {
+    decodedPath = decodeURIComponent(pathname)
+  } catch {
+    sendJson(res, 400, { error: 'URL inválida' })
+    return true
+  }
 
   if (decodedPath === '/reports.json' || decodedPath === '/latest.json' || decodedPath.startsWith('/public/')) {
     const relativePath = decodedPath.startsWith('/public/')
       ? decodedPath.replace('/public/', '')
       : decodedPath.replace('/', '')
     const publicPath = path.join(PUBLIC_DIR, relativePath || '')
+
+    if (!isPathInside(publicPath, PUBLIC_DIR)) {
+      sendJson(res, 403, { error: 'Caminho não permitido' })
+      return true
+    }
+
     const served = await serveStaticFile(res, publicPath)
     if (served) return true
   }
 
   const requestedPath = decodedPath === '/' ? '/index.html' : decodedPath
   const candidate = path.join(DIST_DIR, requestedPath)
+
+  if (!isPathInside(candidate, DIST_DIR)) {
+    sendJson(res, 403, { error: 'Caminho não permitido' })
+    return true
+  }
 
   const served = await serveStaticFile(res, candidate)
   if (served) return true
@@ -177,7 +201,14 @@ await initStore()
 
 const server = http.createServer(async (req, res) => {
   try {
-    const { pathname, searchParams } = new URL(req.url, `http://${req.headers.host}`)
+    let parsedUrl
+    try {
+      parsedUrl = new URL(req.url, `http://${req.headers.host}`)
+    } catch {
+      return sendJson(res, 400, { error: 'URL inválida' })
+    }
+
+    const { pathname, searchParams } = parsedUrl
 
     if (req.method === 'POST' && pathname === '/api/reports') {
       return handlePostReports(req, res)
