@@ -2,16 +2,9 @@ import exampleData from '../data/reports.example.json'
 import { DEFAULT_AUTHOR, MAX_CACHE_ITEMS, RECOMMENDED_LIMIT, REPORTS_API_URL, REPORTS_FALLBACK_URL } from '../constants'
 import { normalizeReportsCollection, normalizeReport } from '../utils/normalizeReport'
 import { validateAndNormalizeReports } from '../utils/validateReport'
+import { getWithTTL, setWithTTL } from '../utils/storage'
 
 const CACHE_KEY = 'reports_cache_v1'
-
-const safeParse = (value) => {
-  try {
-    return JSON.parse(value)
-  } catch {
-    return null
-  }
-}
 
 const buildUrlWithLimit = (baseUrl, limit) => {
   if (!baseUrl) return null
@@ -43,21 +36,17 @@ const fetchFromSource = async (baseUrl, limit) => {
 }
 
 const persistCache = (reports, meta = {}) => {
-  try {
-    const limitedReports = reports.slice(0, MAX_CACHE_ITEMS)
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ reports: limitedReports, meta, cachedAt: new Date().toISOString() }))
-  } catch {
-    // ignore cache errors
-  }
+  const limitedReports = reports.slice(0, MAX_CACHE_ITEMS)
+  setWithTTL(CACHE_KEY, { reports: limitedReports, meta, cachedAt: new Date().toISOString() })
 }
 
 export const readCachedReports = () => {
-  try {
-    const cached = safeParse(localStorage.getItem(CACHE_KEY))
-    if (!cached || !Array.isArray(cached.reports)) return null
-    return cached
-  } catch {
-    return null
+  const cached = getWithTTL(CACHE_KEY)
+  if (!cached || !Array.isArray(cached.reports)) return null
+
+  return {
+    ...cached,
+    reports: cached.reports.map((report) => ({ ...report, dataSource: 'cache' }))
   }
 }
 
@@ -67,6 +56,8 @@ const normalizePayload = (reports, isFallback) => {
   return normalized.map((report) => ({ ...report, author: report.author || DEFAULT_AUTHOR }))
 }
 
+const applySource = (reports, source) => reports.map((report) => ({ ...report, dataSource: source }))
+
 export const getReportsFromApi = async (limit = RECOMMENDED_LIMIT) => {
   const sources = [REPORTS_API_URL, REPORTS_FALLBACK_URL].filter(Boolean)
 
@@ -75,16 +66,18 @@ export const getReportsFromApi = async (limit = RECOMMENDED_LIMIT) => {
       const { reports, meta } = await fetchFromSource(source, limit)
       const isFallback = source !== REPORTS_API_URL
       const normalized = normalizePayload(reports, isFallback)
-      persistCache(normalized, { ...meta, isFallback })
-      return { reports: normalized, meta: { ...meta, isFallback }, source }
+      const withSource = applySource(normalized, isFallback ? 'fallback' : 'api')
+      persistCache(withSource, { ...meta, isFallback })
+      return { reports: withSource, meta: { ...meta, isFallback }, source }
     } catch (err) {
       console.warn(`Falha ao buscar relatórios em ${source}:`, err)
     }
   }
 
   const normalized = normalizePayload(exampleData.reports || [], true)
-  persistCache(normalized, { total: normalized.length, isFallback: true })
-  return { reports: normalized, meta: { total: normalized.length, isFallback: true }, source: 'example' }
+  const withSource = applySource(normalized, 'fallback')
+  persistCache(withSource, { total: normalized.length, isFallback: true })
+  return { reports: withSource, meta: { total: normalized.length, isFallback: true }, source: 'example' }
 }
 
 const buildSlugUrl = (baseUrl, slug) => {
@@ -114,7 +107,15 @@ export const getReportBySlug = async (slug, limit = RECOMMENDED_LIMIT) => {
       if (response.ok) {
         const data = await response.json()
         const normalized = normalizeReport(data)
-        if (normalized) return normalized
+        if (normalized) {
+          const cachedCollection = cached?.reports || []
+          const merged = [
+            { ...normalized, dataSource: 'api' },
+            ...cachedCollection.filter((item) => item.slug !== slug)
+          ]
+          persistCache(merged, cached?.meta || {})
+          return { ...normalized, dataSource: 'api' }
+        }
       }
     } catch (err) {
       console.warn('Falha ao buscar relatório por slug na API', err)
@@ -141,5 +142,6 @@ export const getReports = async (limit = RECOMMENDED_LIMIT) => {
   }
 
   const normalized = normalizePayload(exampleData.reports || [], true)
-  return { reports: normalized, meta: { total: normalized.length, isFallback: true }, source: 'example' }
+  const withSource = applySource(normalized, 'fallback')
+  return { reports: withSource, meta: { total: normalized.length, isFallback: true }, source: 'example' }
 }

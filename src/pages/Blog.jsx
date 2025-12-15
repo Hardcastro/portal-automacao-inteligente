@@ -1,30 +1,40 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, Loader2, AlertCircle, Search, Filter, Database } from 'lucide-react'
+import { Zap, Loader2, AlertCircle, Database } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
 import ReportCard from '../components/ReportCard'
+import Filters from '../components/blog/Filters'
+import Pagination from '../components/blog/Pagination'
 import { getReportBySlug, getReports, readCachedReports } from '../api/getReports'
 import { RECOMMENDED_LIMIT } from '../constants'
-import { filterByCategory, searchReports } from '../utils/reportHelpers'
-
-const filters = [
-  { id: 'todos', label: 'Todos' },
-  { id: 'geopolitica', label: 'Geopolítica' },
-  { id: 'macroeconomia', label: 'Macroeconomia' },
-  { id: 'tendencias', label: 'Tendências' },
-  { id: 'mercados', label: 'Mercados' },
-]
+import useReportsFilters from '../hooks/useReportsFilters'
 
 const Blog = () => {
-  const [activeFilter, setActiveFilter] = useState('todos')
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [searchQuery, setSearchQuery] = useState('')
   const [usedFallback, setUsedFallback] = useState(false)
+  const [source, setSource] = useState(null)
   const navigate = useNavigate()
+
+  const {
+    categories,
+    authors,
+    years,
+    activeCategory,
+    activeAuthor,
+    activeYear,
+    searchQuery,
+    setActiveCategory,
+    setActiveAuthor,
+    setActiveYear,
+    setSearchQuery,
+    setCurrentPage,
+    paginatedReports,
+    paginationMeta
+  } = useReportsFilters(posts, { perPage: 10 })
 
   useEffect(() => {
     let isMounted = true
@@ -36,20 +46,23 @@ const Blog = () => {
       const cached = readCachedReports()
       if (cached?.reports?.length && isMounted) {
         setPosts(cached.reports)
+        setSource('cache')
       }
 
       try {
-        const { reports, meta } = await getReports(RECOMMENDED_LIMIT)
+        const { reports, meta, source: dataSource } = await getReports(RECOMMENDED_LIMIT)
         if (!isMounted) return
         setPosts(reports)
-        const fallback = Boolean(meta?.isFallback)
+        setSource(dataSource)
+        const fallback = dataSource !== 'api' || Boolean(meta?.isFallback)
         setUsedFallback(fallback)
-        if (fallback) {
-          setError('Não foi possível atualizar os relatórios agora.')
-        }
+        if (fallback && dataSource !== 'cache') setError('Não foi possível atualizar os relatórios agora.')
       } catch (err) {
         console.warn('Erro ao carregar relatórios', err)
-        if (isMounted) setError('Não foi possível atualizar os relatórios agora.')
+        if (isMounted) {
+          setError('Não foi possível atualizar os relatórios agora.')
+          if (!cached?.reports?.length) setPosts([])
+        }
       } finally {
         if (isMounted) setLoading(false)
       }
@@ -61,11 +74,6 @@ const Blog = () => {
       isMounted = false
     }
   }, [])
-
-  const filteredPosts = useMemo(() => {
-    const byCategory = filterByCategory(posts, activeFilter)
-    return searchReports(byCategory, searchQuery)
-  }, [posts, activeFilter, searchQuery])
 
   const handleReadMore = (post) => {
     console.info('[analytics] click ver relatorio', { slug: post.slug })
@@ -134,40 +142,25 @@ const Blog = () => {
       {/* Filtros */}
       <section className="relative py-8 px-4 sm:px-6 lg:px-8 bg-graphite-cold/30">
         <div className="section-container">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] gap-4 items-center">
-            <div className="flex flex-wrap justify-center gap-3">
-              {filters.map((filter) => (
-                <button
-                  key={filter.id}
-                  onClick={() => setActiveFilter(filter.id)}
-                  className={`px-6 py-2 rounded-lg font-medium transition-all duration-300 flex items-center gap-2 ${
-                    activeFilter === filter.id
-                      ? 'bg-cyan-luminous text-space-blue glow-cyan'
-                      : 'bg-white/5 text-blue-gray hover:bg-white/10 hover:text-mist-gray'
-                  }`}
-                  aria-pressed={activeFilter === filter.id}
-                >
-                  <Filter className="w-4 h-4" aria-hidden />
-                  {filter.label}
-                </button>
-              ))}
-            </div>
-            <label className="flex items-center gap-3 bg-white/5 rounded-lg px-4 py-2 text-blue-gray focus-within:ring-2 focus-within:ring-cyan-luminous">
-              <Search className="w-4 h-4" aria-hidden />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por título, resumo ou tag"
-                className="bg-transparent flex-1 outline-none text-sm"
-                aria-label="Buscar relatórios"
-              />
-            </label>
-          </div>
+          <Filters
+            categories={categories}
+            authors={authors}
+            years={years}
+            activeCategory={activeCategory}
+            activeAuthor={activeAuthor}
+            activeYear={activeYear}
+            searchQuery={searchQuery}
+            onCategoryChange={(event) => setActiveCategory(event.target.value)}
+            onAuthorChange={(event) => setActiveAuthor(event.target.value)}
+            onYearChange={(event) => setActiveYear(event.target.value)}
+            onSearchChange={(event) => setSearchQuery(event.target.value)}
+          />
           {usedFallback && (
             <div className="mt-4 flex items-center gap-2 text-amber-200 text-sm">
               <Database className="w-4 h-4" />
-              <span>Exibindo dados do fallback enquanto a API principal está indisponível.</span>
+              <span>
+                Exibindo dados {source === 'cache' ? 'em cache local' : 'do fallback'} enquanto a API principal está indisponível.
+              </span>
             </div>
           )}
         </div>
@@ -176,8 +169,8 @@ const Blog = () => {
       {/* Grid de Posts */}
       <section className="section-shell">
         <div className="section-container">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPosts.map((post, index) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {paginatedReports.map((post, index) => (
               <motion.div
                 key={post.id}
                 initial={{ opacity: 0, y: 30 }}
@@ -190,13 +183,18 @@ const Blog = () => {
             ))}
           </div>
 
-          {filteredPosts.length === 0 && (
+          {paginatedReports.length === 0 && (
             <div className="text-center py-12">
               <p className="text-blue-gray text-lg">
                 Nenhum relatório encontrado nesta categoria.
               </p>
             </div>
           )}
+          <Pagination
+            currentPage={paginationMeta.currentPage}
+            totalPages={paginationMeta.totalPages}
+            onPageChange={(page) => setCurrentPage(page)}
+          />
         </div>
       </section>
     </div>
