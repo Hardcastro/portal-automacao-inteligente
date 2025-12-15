@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Calendar, Tag, Zap, Clock, Download, ExternalLink, AlertCircle, Loader2, User } from 'lucide-react'
+import { ArrowLeft, Calendar, Tag, Zap, Clock, Download, ExternalLink, AlertCircle, Loader2, User, Database } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
 import { getReportBySlug, getReports, readCachedReports } from '../api/getReports'
 import { RECOMMENDED_LIMIT } from '../constants'
 import { formatDate, getCategoryName } from '../utils/reportHelpers'
-import { getReportsFromApi } from '../api/getReports'
+const dataSourceLabels = {
+  api: 'API',
+  cache: 'Cache',
+  fallback: 'Fallback'
+}
 
 
 const BlogPost = () => {
@@ -124,6 +128,12 @@ const BlogPost = () => {
               {post.isFallback && (
                 <span className="px-3 py-1 bg-amber-500/15 text-amber-200 text-sm font-medium rounded-full flex items-center gap-1">
                   ⚠️ <span>via fallback</span>
+                </span>
+              )}
+              {post.dataSource && (
+                <span className="px-3 py-1 bg-white/10 text-mist-gray text-sm font-medium rounded-full flex items-center gap-1">
+                  <Database className="w-4 h-4" />
+                  <span>Fonte: {dataSourceLabels[post.dataSource] || post.dataSource}</span>
                 </span>
               )}
               <span className="px-3 py-1 bg-white/10 text-mist-gray text-sm font-medium rounded-full capitalize">

@@ -113,14 +113,14 @@ export const searchReports = (reports, query) => {
   if (!query || query.trim() === '') return reports
 
   const lowerQuery = query.toLowerCase().trim()
-  
+
   return reports.filter(report => {
-    const titleMatch = report.title.toLowerCase().includes(lowerQuery)
-    const excerptMatch = report.excerpt.toLowerCase().includes(lowerQuery)
-    const tagsMatch = report.tags?.some(tag => 
+    const titleMatch = (report.title || '').toLowerCase().includes(lowerQuery)
+    const excerptMatch = (report.excerpt || '').toLowerCase().includes(lowerQuery)
+    const tagsMatch = report.tags?.some(tag =>
       tag.toLowerCase().includes(lowerQuery)
     ) || false
-    
+
     return titleMatch || excerptMatch || tagsMatch
   })
 }

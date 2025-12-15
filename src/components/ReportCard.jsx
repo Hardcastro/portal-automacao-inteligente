@@ -1,4 +1,4 @@
-import { Calendar, Clock, Tag, User, AlertTriangle, Zap } from 'lucide-react'
+import { Calendar, Clock, Tag, User, AlertTriangle, Zap, Database } from 'lucide-react'
 import { CATEGORY_COLORS } from '../constants'
 import { tokens } from '../styles/theme'
 import Button from './UI/Button'
@@ -6,6 +6,12 @@ import Card from './UI/Card'
 import { formatDate, getCategoryName } from '../utils/reportHelpers'
 
 const gradientByCategory = (category) => CATEGORY_COLORS[category] || 'from-white/10 to-white/5'
+
+const dataSourceLabels = {
+  api: 'API',
+  fallback: 'Fallback',
+  cache: 'Cache'
+}
 
 const ReportCard = ({ report, onReadMore, onPrefetch }) => {
   const handleHover = () => {
@@ -54,6 +60,12 @@ const ReportCard = ({ report, onReadMore, onPrefetch }) => {
           <span className={`${tokens.badge.base} bg-amber-500/15 text-amber-200`}>
             <AlertTriangle className="w-3 h-3" />
             <span>via fallback</span>
+          </span>
+        )}
+        {report.dataSource && (
+          <span className={`${tokens.badge.base} bg-white/10 text-blue-gray`}>
+            <Database className="w-3 h-3" />
+            <span>{dataSourceLabels[report.dataSource] || report.dataSource}</span>
           </span>
         )}
       </div>
