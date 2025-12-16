@@ -16,6 +16,17 @@ export const generateSlug = (title = '') => title
   .replace(/[^a-z0-9]+/g, '-')
   .replace(/^-+|-+$/g, '')
 
+const normalizeCategory = (category) => {
+  if (!category) return null
+  const normalized = String(category)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z]/g, '')
+
+  return VALID_CATEGORIES.includes(normalized) ? normalized : null
+}
+
 const normalizeTags = (tags) => {
   if (!Array.isArray(tags)) return []
   return tags
@@ -70,7 +81,11 @@ const extractExcerpt = (report) => {
 export const validateReport = (report) => {
   if (!report || typeof report !== 'object') return false
 
-  const requiredFields = ['id', 'slug', 'title', 'excerpt', 'category', 'date']
+  const normalizedSlug = generateSlug(report.slug || report.title || '')
+  const normalizedCategory = normalizeCategory(report.category)
+  const normalizedExcerpt = sanitizeExcerpt(report.excerpt || extractExcerpt({ ...report, category: normalizedCategory }))
+
+  const requiredFields = ['id', 'title', 'date']
   const missingFields = requiredFields.filter((field) => {
     const value = report[field]
     return value == null || value === ''
@@ -78,11 +93,11 @@ export const validateReport = (report) => {
   if (missingFields.length > 0) return false
 
   if (!UUID_REGEX.test(report.id)) return false
-  if (!SLUG_REGEX.test(report.slug)) return false
+  if (!normalizedSlug || !SLUG_REGEX.test(normalizedSlug)) return false
   if (report.title.length < 3 || report.title.length > 240) return false
-  if (!sanitizeExcerpt(report.excerpt)) return false
+  if (!normalizedExcerpt) return false
 
-  if (!VALID_CATEGORIES.includes(report.category)) return false
+  if (!normalizedCategory) return false
 
   const parsedDate = Date.parse(report.date)
   if (Number.isNaN(parsedDate)) return false
@@ -110,14 +125,14 @@ export const validateReport = (report) => {
 }
 
 export const normalizeReport = (report) => {
-  const cleanedExcerpt = extractExcerpt(report)
-  const resolvedCategory = VALID_CATEGORIES.includes(report.category)
-    ? report.category
-    : 'tendencias'
+  const cleanedExcerpt = sanitizeExcerpt(report.excerpt || extractExcerpt(report))
+  const resolvedCategory = normalizeCategory(report.category) || 'tendencias'
+
+  const resolvedSlug = generateSlug(report.slug || report.title || '')
 
   return {
     ...report,
-    slug: report.slug || generateSlug(report.title || ''),
+    slug: resolvedSlug,
     excerpt: cleanedExcerpt,
     category: resolvedCategory,
     tags: normalizeTags(report.tags),
@@ -131,6 +146,12 @@ export const validateAndNormalizeReports = (reports) => {
   if (!Array.isArray(reports)) return []
 
   return reports
+    .map((report) => ({
+      ...report,
+      slug: generateSlug(report.slug || report.title || ''),
+      category: normalizeCategory(report.category) || report.category,
+      excerpt: sanitizeExcerpt(report.excerpt || extractExcerpt(report)),
+    }))
     .filter(validateReport)
     .map(normalizeReport)
     .sort((a, b) => new Date(b.date) - new Date(a.date))

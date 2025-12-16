@@ -52,7 +52,8 @@ const Blog = () => {
       try {
         const { reports, meta, source: dataSource } = await getReports(RECOMMENDED_LIMIT)
         if (!isMounted) return
-        setPosts(reports)
+        console.info('[blog] dados recebidos', { source: dataSource, total: reports?.length ?? 0, meta })
+        setPosts(reports || [])
         setSource(dataSource)
         const fallback = dataSource !== 'api' || Boolean(meta?.isFallback)
         setUsedFallback(fallback)
