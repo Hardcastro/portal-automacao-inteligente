@@ -19,6 +19,16 @@ const isValidUrl = (value) => {
   }
 }
 
+const sanitizeHtmlBody = (html) => {
+  if (!html) return ''
+
+  const strippedScripts = html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+  const withoutEvents = strippedScripts.replace(/ on\w+=("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+  const withoutJavascriptProtocols = withoutEvents.replace(/javascript:/gi, '')
+
+  return withoutJavascriptProtocols
+}
+
 export const normalizeIncomingReport = (report = {}) => {
   const rawContentUrl = report.contentUrl || report.pdfUrl || report.file || null
   const safeSlug = report.slug && SLUG_REGEX.test(report.slug) ? report.slug : generateSlug(report.title || '')
@@ -30,7 +40,9 @@ export const normalizeIncomingReport = (report = {}) => {
   const normalizedContent = contentBlock
     ? {
       type: contentBlock.type === 'markdown' ? 'markdown' : 'html',
-      body: String(contentBlock.body || ''),
+      body: contentBlock.type === 'html'
+        ? sanitizeHtmlBody(String(contentBlock.body || ''))
+        : String(contentBlock.body || ''),
     }
     : null
 
@@ -95,6 +107,9 @@ export const normalizeIncomingReports = (body) => {
   if (Array.isArray(source)) return source
   if (source && Array.isArray(source.reports)) return source.reports
   if (source && typeof source === 'object') return [source]
+  if (Array.isArray(body)) return body
+  if (Array.isArray(body.reports)) return body.reports
+  if (typeof body === 'object') return [body]
   return []
 }
 

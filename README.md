@@ -25,6 +25,8 @@ VITE_REPORTS_FALLBACK_URL=https://<seu-backend>/public/latest.json  # ou /public
 ```
 
 Se as variáveis não estiverem presentes, o app usa apenas cache prévio e `src/data/reports.example.json` como último recurso.
+Em produção, confirme que `VITE_REPORTS_API_URL` aponta para o domínio público da API (ex.: `https://www.aetherflow.digital/api/reports`)
+ou garanta que `/api/reports` esteja acessível a partir do host onde o front-end é servido, evitando cair em fallback.
 
 ## 🚀 Como rodar
 1) Instalar dependências
