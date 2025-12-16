@@ -1,4 +1,4 @@
-export const VALID_CATEGORIES = ['geopolitica', 'macroeconomia', 'tendencias', 'mercados']
+export const VALID_CATEGORIES = ['geopolitica', 'macroeconomia', 'tendencias', 'mercados', 'outros']
 export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export const SLUG_REGEX = /^[a-z0-9-]+$/
 
