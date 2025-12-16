@@ -28,6 +28,13 @@ Se as variáveis não estiverem presentes, o app usa apenas cache prévio e `src
 Em produção, confirme que `VITE_REPORTS_API_URL` aponta para o domínio público da API (ex.: `https://www.aetherflow.digital/api/reports`)
 ou garanta que `/api/reports` esteja acessível a partir do host onde o front-end é servido, evitando cair em fallback.
 
+Para implantações na AetherFlow, você pode copiar `.env.production.example` e ajustar conforme o domínio da API:
+
+```
+cp .env.production.example .env.production
+# edite se o host da API for diferente
+```
+
 ## 🚀 Como rodar
 1) Instalar dependências
 ```bash
