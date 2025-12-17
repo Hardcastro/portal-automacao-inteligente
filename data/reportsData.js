@@ -12,7 +12,20 @@ const PUBLIC_DIR = path.join(__dirname, '..', 'public')
 const DIST_DIR = path.join(__dirname, '..', 'dist')
 const DATA_FILE = path.join(DATA_DIR, 'reports.json')
 const PUBLIC_REPORTS_FILE = path.join(PUBLIC_DIR, 'reports.json')
-const LEGACY_PUBLIC_FILE = path.join(PUBLIC_DIR, 'reports.json')
+const LEGACY_DATA_FILE = path.join(DATA_DIR, 'legacy-reports.json')
+
+const backupCorruptedFile = async (filePath) => {
+  if (!fs.existsSync(filePath)) return
+
+  const backupName = `${path.basename(filePath)}.corrupted-${Date.now()}`
+  const backupPath = path.join(DATA_DIR, backupName)
+
+  try {
+    await fsPromises.copyFile(filePath, backupPath)
+  } catch (error) {
+    console.error(`Falha ao criar backup de ${filePath}`, error)
+  }
+}
 
 let reports = []
 let meta = { total: 0, lastUpdated: null }
@@ -24,13 +37,13 @@ const ensureDirs = async () => {
 }
 
 const readJsonFile = async (filePath) => {
-  if (!fs.existsSync(filePath)) return null
+  if (!fs.existsSync(filePath)) return { ok: false, exists: false }
   try {
     const content = await fsPromises.readFile(filePath, 'utf-8')
-    return JSON.parse(content)
+    return { ok: true, exists: true, data: JSON.parse(content) }
   } catch (error) {
     console.warn(`Não foi possível ler ${filePath}`, error)
-    return null
+    return { ok: false, exists: true, error }
   }
 }
 
@@ -50,15 +63,27 @@ export const initStore = async () => {
   await ensureDirs()
 
   const existing = await readJsonFile(DATA_FILE)
-  const legacyPublic = await readJsonFile(LEGACY_PUBLIC_FILE)
+  const legacyData = await readJsonFile(LEGACY_DATA_FILE)
 
-  const source = existing || legacyPublic || { reports: [], meta: { total: 0, lastUpdated: null } }
+  const source = existing.ok
+    ? existing.data
+    : legacyData.ok
+      ? legacyData.data
+      : { reports: [], meta: { total: 0, lastUpdated: null } }
 
   reports = Array.isArray(source.reports) ? source.reports.map(normalizeIncomingReport) : []
   reports.sort(sortByDateDesc)
   meta = {
     total: reports.length,
     lastUpdated: source.meta?.lastUpdated || null,
+  }
+
+  const hasCorruptedPrimary = existing.exists && !existing.ok
+
+  if (hasCorruptedPrimary) {
+    await backupCorruptedFile(DATA_FILE)
+    console.error('Arquivo de dados corrompido detectado. A escrita foi abortada para evitar perda de dados.')
+    return
   }
 
   await persistSnapshots()
