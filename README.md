@@ -24,8 +24,9 @@ VITE_REPORTS_API_URL=https://<seu-backend>/api/reports
 VITE_REPORTS_FALLBACK_URL=https://<seu-backend>/public/latest.json  # ou /public/reports.json
 ```
 
-Se as variáveis não estiverem presentes, o app usa apenas cache prévio e `src/data/reports.example.json` como último recurso.
-Em produção, confirme que `VITE_REPORTS_API_URL` aponta para o domínio público da API (ex.: `https://www.aetherflow.digital/api/reports`)
+Se `VITE_REPORTS_FALLBACK_URL` não for definido, o front deriva automaticamente o fallback a partir do host da API configurada (ex.:
+`https://<seu-backend>/public/latest.json`). Se nenhuma variável for encontrada, o app usa apenas cache prévio e `src/data/reports.example.json`
+como último recurso. Em produção, confirme que `VITE_REPORTS_API_URL` aponta para o domínio público da API (ex.: `https://www.aetherflow.digital/api/reports`)
 ou garanta que `/api/reports` esteja acessível a partir do host onde o front-end é servido, evitando cair em fallback.
 
 Para implantações na AetherFlow, você pode copiar `.env.production.example` e ajustar conforme o domínio da API:
