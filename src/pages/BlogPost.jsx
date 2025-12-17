@@ -1,110 +1,95 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Calendar, Tag, Zap, Clock, Download, ExternalLink, AlertCircle, Loader2, User, Database } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Loader2, Sparkles, Database } from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
-import { getReportBySlug, getReports, readCachedReports } from '../api/getReports'
-import { RECOMMENDED_LIMIT } from '../constants'
-import { formatDate, getCategoryName } from '../utils/reportHelpers'
-const dataSourceLabels = {
-  api: 'API',
-  cache: 'Cache',
-  fallback: 'Fallback'
-}
 
+const WEBHOOK_URL = import.meta.env.VITE_ACTIVEPIECES_WEBHOOK_BLOG
 
 const BlogPost = () => {
   const { slug } = useParams()
   const navigate = useNavigate()
-  const [post, setPost] = useState(null)
+  const [cachedReports, setCachedReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     let isMounted = true
 
-    const fetchPost = async () => {
+    const loadFromCache = () => {
+      const local = JSON.parse(localStorage.getItem('activepiecesReports') || '[]')
+      if (local.length > 0) setCachedReports(local)
+    }
+
+    const fetchNewReports = async () => {
       try {
-        setLoading(true)
-        setError(null)
-
-        const cached = readCachedReports()
-        const cachedMatch = cached?.reports?.find((item) => item.slug === slug)
-        if (cachedMatch && isMounted) {
-          setPost(cachedMatch)
+        if (!WEBHOOK_URL) {
+          throw new Error('Webhook não configurado')
         }
 
-        const report = await getReportBySlug(slug, RECOMMENDED_LIMIT)
+        const res = await fetch(WEBHOOK_URL)
+        const data = await res.json()
         if (!isMounted) return
-        if (report) {
-          setPost(report)
-        } else {
-          const { reports } = await getReports(RECOMMENDED_LIMIT)
-          const fallbackMatch = reports.find((item) => item.slug === slug)
-          if (fallbackMatch) {
-            setPost(fallbackMatch)
-          } else {
-            setError('Não foi possível carregar este relatório.')
-          }
-        }
+        const normalizedData = Array.isArray(data) ? data : []
+        setCachedReports(normalizedData)
+        localStorage.setItem('activepiecesReports', JSON.stringify(normalizedData))
+        setError(null)
       } catch (err) {
-        console.warn('Erro ao carregar relatório', err)
-        if (isMounted) setError('Não foi possível carregar este relatório.')
+        console.warn('Falha ao atualizar dados do Activepieces:', err)
+        if (isMounted) {
+          setError('Não foi possível atualizar os relatórios agora.')
+        }
       } finally {
         if (isMounted) setLoading(false)
       }
     }
 
-    fetchPost()
-
-    return () => {
-      isMounted = false
-    }
-  }, [slug])
+    loadFromCache()
+    fetchNewReports()
+    return () => { isMounted = false }
+  }, [])
 
   useEffect(() => {
-    if (post) {
-      console.info('[analytics] view blogpost', { slug: post.slug })
+    if (slug && cachedReports.length > 0) {
+      const match = cachedReports.find((post) => post.slug === slug)
+      if (match) {
+        console.info('[analytics] view blogpost', { slug: match.slug })
+      }
     }
-  }, [post])
+  }, [cachedReports, slug])
 
-  if (loading) {
+  const reportsToRender = useMemo(
+    () => (slug ? cachedReports.filter((item) => item.slug === slug) : cachedReports),
+    [cachedReports, slug]
+  )
+
+  if (loading && reportsToRender.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-cyan-luminous animate-spin mx-auto mb-4" />
-          <p className="text-blue-gray">Carregando relatório...</p>
+          <p className="text-blue-gray">Carregando relatórios...</p>
         </div>
       </div>
     )
   }
 
-  if (!post || error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="max-w-md text-center">
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-mist-gray mb-2">Relatório não encontrado</h2>
-          <p className="text-blue-gray mb-4">{error || 'O relatório solicitado não existe.'}</p>
-          <Button onClick={() => navigate('/blog')}>Voltar ao blog</Button>
-        </Card>
-      </div>
-    )
+  if (!cachedReports.length && !loading) {
+    return <p className="text-center text-blue-gray">Nenhum relatório disponível.</p>
   }
 
   return (
     <article className="min-h-screen">
-      {/* Header do Post */}
-      <section className="section-shell border-b border-white/10">
+      <section className="section-shell border-b border-white/10 bg-graphite-cold/30">
         <div className="section-container max-w-4xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
+            className="flex items-center justify-between flex-wrap gap-4"
           >
-            {/* Breadcrumb */}
-            <nav className="mb-6">
+            <div className="space-y-2">
               <Link
                 to="/blog"
                 className="inline-flex items-center space-x-2 text-blue-gray hover:text-cyan-luminous transition-colors"
@@ -112,148 +97,57 @@ const BlogPost = () => {
                 <ArrowLeft className="w-4 h-4" />
                 <span>Voltar ao blog</span>
               </Link>
-            </nav>
-
-            {/* Badges */}
-            <div className="mb-6 flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center space-x-1 px-3 py-1 bg-cyan-luminous/10 text-cyan-luminous text-sm font-semibold rounded-full">
-                <Zap className="w-4 h-4" />
-                <span>Gerado pelo Motor Inteligente</span>
-              </span>
-              {post.isNew && (
-                <span className="px-3 py-1 bg-neon-green/15 text-neon-green text-sm font-medium rounded-full">
-                  🆕 Novo
-                </span>
-              )}
-              {post.isFallback && (
-                <span className="px-3 py-1 bg-amber-500/15 text-amber-200 text-sm font-medium rounded-full flex items-center gap-1">
-                  ⚠️ <span>via fallback</span>
-                </span>
-              )}
-              {post.dataSource && (
-                <span className="px-3 py-1 bg-white/10 text-mist-gray text-sm font-medium rounded-full flex items-center gap-1">
-                  <Database className="w-4 h-4" />
-                  <span>Fonte: {dataSourceLabels[post.dataSource] || post.dataSource}</span>
-                </span>
-              )}
-              <span className="px-3 py-1 bg-white/10 text-mist-gray text-sm font-medium rounded-full capitalize">
-                {getCategoryName(post.category)}
-              </span>
+              <h1 className="text-3xl sm:text-4xl font-bold text-mist-gray">
+                Leituras do motor inteligente
+              </h1>
+              <p className="text-blue-gray max-w-2xl">
+                Publicações geradas automaticamente e servidas via Activepieces. O conteúdo é salvo localmente e atualizado
+                assim que o webhook envia novos dados.
+              </p>
             </div>
-
-            {/* Título */}
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-mist-gray mb-6">
-              {post.title}
-            </h1>
-
-            {/* Meta informações */}
-            <div className="flex flex-wrap items-center gap-6 text-blue-gray text-sm mb-8">
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-4 h-4" />
-                <span>{formatDate(post.date)}</span>
+            <Card className="min-w-[240px]" hover={false}>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-cyan-luminous/10 text-cyan-luminous">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-cyan-luminous/80 mb-1">Conteúdo ativo</p>
+                  <p className="text-xl font-semibold text-mist-gray">{reportsToRender.length} posts</p>
+                  <div className="flex items-center gap-2 text-blue-gray text-sm">
+                    <Database className="w-4 h-4" />
+                    <span>{WEBHOOK_URL ? 'Webhook público' : 'Cache local'}</span>
+                  </div>
+                </div>
               </div>
-              {post.readTime && (
-                <div className="flex items-center space-x-2">
-                  <Clock className="w-4 h-4" />
-                  <span>{post.readTime} min de leitura</span>
-                </div>
-              )}
-              {post.author && (
-                <div className="flex items-center space-x-2">
-                  <User className="w-4 h-4" />
-                  <span>Por {post.author}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Tags */}
-            {post.tags && post.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-8">
-                {post.tags.map((tag, idx) => (
-                  <span
-                    key={`${post.id}-tag-${idx}`}
-                    className="px-3 py-1 bg-white/5 text-blue-gray text-sm rounded-full border border-white/10"
-                  >
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Ações (Download/Link) */}
-            {post.contentUrl && (
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  href={post.contentUrl}
-                  target="_blank"
-                  className="inline-flex items-center space-x-2"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Baixar PDF</span>
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  href={post.contentUrl}
-                  target="_blank"
-                  className="inline-flex items-center space-x-2"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>Abrir em nova aba</span>
-                </Button>
-              </div>
-            )}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Conteúdo Principal */}
-      <section className="section-shell">
-        <div className="section-container max-w-4xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-          >
-            <Card className="prose prose-invert prose-lg max-w-none">
-              {post.content && post.content.type === 'html' && (
-                <div
-                  className="report-content"
-                  dangerouslySetInnerHTML={{ __html: post.content.body }}
-                />
-              )}
-
-              {post.content && post.content.type === 'markdown' && (
-                <div className="report-content whitespace-pre-wrap">
-                  {post.content.body}
-                </div>
-              )}
-
-              {post.contentUrl && !post.content && (
-                <div className="w-full min-h-[400px] h-[70vh]">
-                  <iframe
-                    src={post.contentUrl}
-                    className="w-full h-full rounded-lg border border-white/10"
-                    title={post.title}
-                  />
-                </div>
-              )}
-
-              {!post.content && !post.contentUrl && (
-                <div className="text-center py-12">
-                  <p className="text-blue-gray">
-                    Conteúdo não disponível no momento.
-                  </p>
-                </div>
-              )}
             </Card>
           </motion.div>
         </div>
       </section>
 
-      {/* Navegação */}
+      <section className="section-shell">
+        <div className="section-container max-w-4xl space-y-6">
+          {error && (
+            <Card className="border border-amber-300/30 bg-amber-500/5" hover={false}>
+              <div className="flex items-center gap-3 text-amber-200">
+                <AlertCircle className="w-5 h-5" />
+                <p className="text-sm">{error}</p>
+              </div>
+            </Card>
+          )}
+
+          {reportsToRender.map((post) => (
+            <Card key={post.slug} className="mb-6">
+              <h2 className="text-2xl font-bold text-mist-gray mb-2">{post.title}</h2>
+              <p className="text-blue-gray text-sm mb-4">Por {post.author} — {post.date}</p>
+              <div
+                className="prose prose-invert"
+                dangerouslySetInnerHTML={{ __html: post.content?.body || '' }}
+              />
+            </Card>
+          ))}
+        </div>
+      </section>
+
       <section className="section-shell border-t border-white/10">
         <div className="section-container max-w-4xl">
           <div className="text-center">
