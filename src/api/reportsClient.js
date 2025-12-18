@@ -1,5 +1,11 @@
 import exampleData from '../data/reports.example.json'
-import { MAX_CACHE_ITEMS, RECOMMENDED_LIMIT, REPORTS_API_URL, REPORTS_FALLBACK_URL } from '../constants'
+import {
+  ACTIVEPIECES_WEBHOOK_BLOG,
+  MAX_CACHE_ITEMS,
+  RECOMMENDED_LIMIT,
+  REPORTS_API_URL,
+  REPORTS_FALLBACK_URL,
+} from '../constants'
 import { normalizeReport, normalizeReportsCollection } from '../utils/reportSchema'
 import { getWithTTL, setWithTTL } from '../utils/storage'
 
@@ -66,21 +72,22 @@ const readCachedReports = () => {
 }
 
 const normalizePayload = (reports, options) => normalizeReportsCollection(reports, options)
-  .map((report) => ({ ...report, dataSource: options?.isFallback ? 'fallback' : 'api' }))
+  .map((report) => ({ ...report, dataSource: options?.dataSource || (options?.isFallback ? 'fallback' : 'api') }))
 
 const loadFromSources = async ({ limit }) => {
   const sources = [
-    { url: buildUrlWithLimit(REPORTS_API_URL, limit), isFallback: false },
-    { url: buildUrlWithLimit(REPORTS_FALLBACK_URL, limit), isFallback: true },
+    { url: buildUrlWithLimit(REPORTS_API_URL, limit), isFallback: false, dataSource: 'api' },
+    { url: buildUrlWithLimit(ACTIVEPIECES_WEBHOOK_BLOG, limit), isFallback: false, dataSource: 'webhook' },
+    { url: buildUrlWithLimit(REPORTS_FALLBACK_URL, limit), isFallback: true, dataSource: 'fallback' },
   ].filter((entry) => entry.url)
 
   for (const entry of sources) {
     try {
       const { reports, meta } = await fetchReportsPayload(entry.url)
-      const normalized = normalizePayload(reports, { isFallback: entry.isFallback })
-      const payloadMeta = { ...meta, isFallback: entry.isFallback }
+      const normalized = normalizePayload(reports, { isFallback: entry.isFallback, dataSource: entry.dataSource })
+      const payloadMeta = { ...meta, isFallback: entry.isFallback, source: entry.dataSource }
       persistCache(normalized, payloadMeta)
-      return { reports: normalized, meta: payloadMeta, source: entry.isFallback ? 'fallback' : 'api' }
+      return { reports: normalized, meta: payloadMeta, source: entry.dataSource }
     } catch (err) {
       console.warn(`Falha ao buscar relatórios em ${entry.url}:`, err)
     }

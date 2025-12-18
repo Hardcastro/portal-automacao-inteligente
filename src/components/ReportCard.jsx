@@ -10,7 +10,8 @@ const gradientByCategory = (category) => CATEGORY_COLORS[category] || 'from-whit
 const dataSourceLabels = {
   api: 'API',
   fallback: 'Fallback',
-  cache: 'Cache'
+  cache: 'Cache',
+  webhook: 'Webhook',
 }
 
 const ReportCard = ({ report, onReadMore, onPrefetch }) => {
