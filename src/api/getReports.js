@@ -5,15 +5,12 @@ import { validateAndNormalizeReports } from '../utils/validateReport'
 import { getWithTTL, setWithTTL } from '../utils/storage'
 
 const CACHE_KEY = 'reports_cache_v1'
-const isUsingDefaultApiUrl = !import.meta.env?.VITE_REPORTS_API_URL
 let hasWarnedApiUrl = false
 
-const warnIfUsingDefaultApiUrl = () => {
-  if (hasWarnedApiUrl || !isUsingDefaultApiUrl) return
+const warnIfMissingApiUrl = () => {
+  if (hasWarnedApiUrl || REPORTS_API_URL) return
   hasWarnedApiUrl = true
-  console.warn(
-    '[reports] VITE_REPORTS_API_URL não definido; usando /api/reports. Configure para o host público se a API estiver em domínio diferente.'
-  )
+  console.warn('[reports] VITE_REPORTS_API_URL não definido no .env; configure antes de publicar.')
 }
 
 const buildUrlWithLimit = (baseUrl, limit) => {
@@ -69,7 +66,7 @@ const normalizePayload = (reports, isFallback) => {
 const applySource = (reports, source) => reports.map((report) => ({ ...report, dataSource: source }))
 
 export const getReportsFromApi = async (limit = RECOMMENDED_LIMIT) => {
-  warnIfUsingDefaultApiUrl()
+  warnIfMissingApiUrl()
   const sources = [REPORTS_API_URL, REPORTS_FALLBACK_URL].filter(Boolean)
 
   for (const source of sources) {
