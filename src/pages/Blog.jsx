@@ -14,6 +14,13 @@ export default function Blog() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const getDataSourceLabel = () => {
+    if (meta?.source === 'webhook') return 'Webhook Activepieces'
+    if (meta?.source === 'fallback' || meta?.isFallback) return 'Fallback/Cache'
+    if (meta?.source === 'cache') return 'Cache local'
+    return 'API principal'
+  }
+
   useEffect(() => {
     let isMounted = true
 
@@ -24,7 +31,7 @@ export default function Blog() {
         const response = await getReports()
         if (!isMounted) return
         setReports(response.reports ?? [])
-        setMeta(response.meta ?? {})
+        setMeta({ ...(response.meta ?? {}), source: response.source ?? response.meta?.source })
       } catch (err) {
         console.error('Erro ao buscar relatórios:', err)
         if (isMounted) setError('Não foi possível carregar os relatórios agora.')
@@ -134,7 +141,7 @@ export default function Blog() {
                 <p className="text-xs uppercase tracking-widest text-cyan-luminous/80 mb-1">Fonte de dados</p>
                 <div className="flex items-center gap-2 text-blue-gray">
                   <Database className="w-4 h-4" />
-                  <span className="capitalize">{meta?.isFallback ? 'Fallback/Cache' : 'API principal'}</span>
+                  <span className="capitalize">{getDataSourceLabel()}</span>
                 </div>
               </div>
             </motion.div>
