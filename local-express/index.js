@@ -48,6 +48,22 @@ const express = () => {
       return this
     }
 
+    res.set = function set(field, value) {
+      if (typeof field === 'string' && value !== undefined) {
+        this.setHeader(field, value)
+        return this
+      }
+
+      if (field && typeof field === 'object') {
+        Object.entries(field).forEach(([key, val]) => {
+          this.setHeader(key, val)
+        })
+        return this
+      }
+
+      return this
+    }
+
     res.json = function json(payload) {
       if (!this.getHeader('Content-Type')) {
         this.setHeader('Content-Type', 'application/json')
