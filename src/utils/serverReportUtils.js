@@ -1,5 +1,13 @@
 import { randomUUID } from 'crypto'
-import { buildExcerpt, calculateReadTime, generateSlug, sanitizeExcerpt, SLUG_REGEX, UUID_REGEX, VALID_CATEGORIES } from './reportSchema.js'
+import {
+  buildExcerpt,
+  calculateReadTime,
+  generateSlug,
+  sanitizeExcerpt,
+  SLUG_REGEX,
+  UUID_REGEX,
+  VALID_CATEGORIES,
+} from './reportSchema.js'
 
 const slugify = (str = '') => str
   .normalize('NFD')
