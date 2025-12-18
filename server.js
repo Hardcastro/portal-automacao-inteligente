@@ -4,6 +4,7 @@ import fs from 'fs'
 import fsPromises from 'fs/promises'
 import express from 'express'
 import { fileURLToPath } from 'url'
+import { timingSafeEqual } from 'crypto'
 import { normalizeIncomingReports } from './src/utils/serverReportUtils.js'
 import { findReportBySlug, getReports, initStore, upsertReports } from './data/reportsData.js'
 
@@ -20,6 +21,15 @@ const DIST_DIR = path.join(__dirname, 'dist')
 const app = express()
 
 app.use(express.json({ limit: PAYLOAD_LIMIT, type: 'application/json' }))
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'no-referrer',
+  })
+  next()
+})
 
 const getContentType = (filePath) => {
   const ext = path.extname(filePath).toLowerCase()
@@ -60,6 +70,10 @@ const serveStaticFile = async (res, filePath) => {
 }
 
 const handleStaticRequest = async (req, res, next) => {
+  if (!['GET', 'HEAD'].includes(req.method)) {
+    return next()
+  }
+
   const pathname = req.path
   let decodedPath
   try {
@@ -102,29 +116,57 @@ const handleStaticRequest = async (req, res, next) => {
   next()
 }
 
-const authenticateRequest = (req) => {
-  if (!REPORTS_SECRET) {
-    return { ok: false, status: 500, error: 'REPORTS_SECRET_TOKEN não configurado' }
+const buildAuthenticator = (secret) => {
+  if (!secret) {
+    console.warn('REPORTS_SECRET_TOKEN não configurado; requisições protegidas serão rejeitadas.')
+    return () => ({ ok: false, status: 503, error: 'Configuração do servidor ausente' })
   }
 
-  const header = req.headers.authorization || ''
-  const token = header.startsWith('Bearer ')
-    ? header.slice(7)
-    : null
+  const secretBuffer = Buffer.from(secret)
 
-  if (!token || token !== REPORTS_SECRET) {
-    return { ok: false, status: 401, error: 'Não autorizado' }
+  return (req) => {
+    const header = req.headers.authorization || ''
+    const token = header.startsWith('Bearer ')
+      ? header.slice(7)
+      : null
+
+    if (!token) {
+      return { ok: false, status: 401, error: 'Cabeçalho Authorization ausente' }
+    }
+
+    const tokenBuffer = Buffer.from(token)
+    if (tokenBuffer.length !== secretBuffer.length) {
+      return { ok: false, status: 401, error: 'Não autorizado' }
+    }
+
+    const isValid = timingSafeEqual(tokenBuffer, secretBuffer)
+    return isValid
+      ? { ok: true }
+      : { ok: false, status: 401, error: 'Não autorizado' }
   }
-
-  return { ok: true }
 }
 
-app.post('/api/reports', async (req, res) => {
+const authenticateRequest = buildAuthenticator(REPORTS_SECRET)
+
+const requireAuth = (req, res, next) => {
   const auth = authenticateRequest(req)
   if (!auth.ok) {
     return res.status(auth.status).json({ error: auth.error })
   }
 
+  next()
+}
+
+const requireJsonContent = (req, res, next) => {
+  const contentType = (req.headers['content-type'] || '').toLowerCase()
+  if (!contentType.includes('application/json')) {
+    return res.status(415).json({ error: 'Content-Type deve ser application/json' })
+  }
+
+  next()
+}
+
+app.post('/api/reports', requireAuth, requireJsonContent, async (req, res) => {
   const incoming = normalizeIncomingReports(req.body)
   if (incoming.length === 0) {
     return res.status(400).json({ error: 'Payload deve ser um objeto ou array de relatórios' })
