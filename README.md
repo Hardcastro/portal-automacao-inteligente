@@ -1,12 +1,12 @@
 # Portal Automação Inteligente
 
-SPA em React/Vite para exibir relatórios estratégicos consumidos de uma API externa (`/api/reports`) com fallback para snapshots JSON e cache em `localStorage`. O projeto foi pensado para ser servido como site estático (Render, GitHub Pages, etc.) enquanto consulta um backend já provisionado.
+SPA em React/Vite para exibir relatórios estratégicos servidos **sempre** pela API do backend (`/api/reports`). A aplicação privilegia a API como fonte única e pode usar um fallback estático configurável e cache em `localStorage` para resiliência.
 
 ## ✨ Principais recursos
-- **Blog dinâmico**: carrega até 60 relatórios recentes via `getReports()` (API → fallback → exemplo local) e usa `localStorage` para acelerar navegações.
-- **Fallback resiliente**: suporte a `latest.json` (objeto único) ou `reports.json` (lista completa), convertendo-os para arrays consumíveis pelo front-end.
-- **Validação/normalização**: campos obrigatórios (id, slug, title, excerpt, category, date e `content` ou `contentUrl`) são normalizados no cliente, com autor padrão e marcação de itens recentes.
-- **Cache-first no detalhe**: `getReportBySlug` reaproveita cache antes de buscar a API, garantindo leitura mesmo em cenários offline.
+- **Blog dinâmico**: carrega até 60 relatórios recentes via `reportsClient.getReports()` (API → fallback estático opcional → erro controlado) com cache em `localStorage`.
+- **Detalhe unificado**: `getReportBySlug` sempre busca `GET /api/reports/:slug`, reutiliza cache e só cai para fallback estático quando a API está indisponível.
+- **Normalização leve no front**: ajustes de slug, excerpt, tags, tempo de leitura e categoria em `src/utils/reportSchema.js`, alinhados ao contrato do backend.
+- **Backend com validação forte**: o webhook de publicação (`POST /api/reports`) valida e normaliza antes de persistir.
 - **UI consistente**: cards reutilizáveis com badges de categoria, indicador de fallback, tempo de leitura, autor e selo “novo” para publicações recentes.
 
 ## 🧰 Stack
@@ -21,13 +21,13 @@ Defina as variáveis em `.env` ou no provider de hosting antes do build:
 
 ```
 VITE_REPORTS_API_URL=https://<seu-backend>/api/reports
-VITE_REPORTS_FALLBACK_URL=https://<seu-backend>/public/latest.json  # ou /public/reports.json
+VITE_REPORTS_FALLBACK_URL=https://<seu-backend>/public/latest.json  # opcional
+VITE_ENABLE_REPORTS_EXAMPLE=true                                    # opcional (somente dev)
 ```
 
-Se `VITE_REPORTS_FALLBACK_URL` não for definido, o front deriva automaticamente o fallback a partir do host da API configurada (ex.:
-`https://<seu-backend>/public/latest.json`). Se nenhuma variável for encontrada, o app usa apenas cache prévio e `src/data/reports.example.json`
-como último recurso. Em produção, confirme que `VITE_REPORTS_API_URL` aponta para o domínio público da API (ex.: `https://www.aetherflow.digital/api/reports`)
-ou garanta que `/api/reports` esteja acessível a partir do host onde o front-end é servido, evitando cair em fallback.
+O front sempre tenta a API. Se `VITE_REPORTS_FALLBACK_URL` estiver configurada, ela é usada apenas quando a API falhar. O exemplo local só é lido quando
+`VITE_ENABLE_REPORTS_EXAMPLE` estiver definido (útil para desenvolvimento). Em produção, confirme que `VITE_REPORTS_API_URL` aponta para o domínio público
+da API (ex.: `https://www.aetherflow.digital/api/reports`) ou garanta que `/api/reports` esteja acessível a partir do host onde o front-end é servido.
 
 Para implantações na AetherFlow, você pode copiar `.env.production.example` e ajustar conforme o domínio da API:
 
@@ -35,6 +35,10 @@ Para implantações na AetherFlow, você pode copiar `.env.production.example` e
 cp .env.production.example .env.production
 # edite se o host da API for diferente
 ```
+
+No backend (Node), defina `REPORTS_SECRET_TOKEN` para autorizar publicações via `POST /api/reports`. Se precisar gerar um snapshot
+estático em `public/reports.json` e `public/latest.json`, habilite `ENABLE_REPORTS_SNAPSHOT=true` (desabilitado por padrão para evitar
+fontes de verdade duplicadas).
 
 ## 🚀 Como rodar
 1) Instalar dependências
@@ -57,7 +61,7 @@ npm run build
 ```bash
 npm start
 ```
-O servidor HTTP usa os arquivos já gerados em `dist/`, expõe `/api/reports`, `/api/reports/:slug` e publica snapshots em `/public/reports.json` e `/public/latest.json`.
+O servidor HTTP usa os arquivos já gerados em `dist/`, expõe `/api/reports`, `/api/reports/:slug` e pode publicar snapshots opcionais em `/public/reports.json` e `/public/latest.json` quando `ENABLE_REPORTS_SNAPSHOT=true`.
 
 5) Pré-visualizar o build (apenas front-end)
 ```bash
@@ -67,12 +71,11 @@ npm run preview
 ## 📦 Estrutura relevante
 ```
 src/
-├── api/getReports.js         # Fetch com fallback + cache
+├── api/reportsClient.js      # Fetch unificado com fallback + cache
 ├── components/ReportCard.jsx # Card reutilizável da listagem
 ├── pages/Blog.jsx            # Lista e filtros de relatórios
-├── pages/BlogPost.jsx        # Página de detalhe (HTML ou PDF)
-├── utils/normalizeReport.js  # Normalização cliente
-├── utils/validateReport.js   # Validação/cálculo de metadados
+├── pages/BlogPost.jsx        # Página de detalhe (HTML ou Markdown)
+├── utils/reportSchema.js     # Normalização cliente compartilhada
 └── data/reports.example.json # Exemplo local
 ```
 
@@ -86,11 +89,16 @@ O front converte respostas alternativas:
 - Objetos `{ reports: [...] }`
 - Snapshots `{ latest: {...} }`
 
+## 🔄 Fluxo de publicação e leitura
+- Publicação: Activepieces chama `POST /api/reports` com `REPORTS_SECRET_TOKEN` (Bearer) para armazenar/atualizar relatórios.
+- Leitura: o site consome apenas `GET /api/reports` e `GET /api/reports/:slug` como fonte primária.
+- Fallback: `VITE_REPORTS_FALLBACK_URL` é usado somente quando a API falha; o exemplo local requer `VITE_ENABLE_REPORTS_EXAMPLE=true`.
+
 ## 📊 Fluxo de dados e cache
-1. Busca em `VITE_REPORTS_API_URL` com limite recomendado (60).
+1. Busca primária em `VITE_REPORTS_API_URL` com limite recomendado (60).
 2. Se falhar, tenta `VITE_REPORTS_FALLBACK_URL` (aceita `latest.json` ou `reports.json`).
-3. Se ainda falhar, usa `reports.example.json`.
-4. Resultados válidos são armazenados em `localStorage` para uso posterior e para pré-carregar slugs específicos.
+3. O exemplo `reports.example.json` só é utilizado quando `VITE_ENABLE_REPORTS_EXAMPLE=true`.
+4. Resultados válidos são armazenados em `localStorage` (TTL) para acelerar navegação e servir o detalhe (`/blog/:slug`).
 
 ## ✅ Boas práticas
 - Mantenha as URLs de API e fallback acessíveis pela mesma origem do front para evitar CORS em desenvolvimento.

@@ -8,11 +8,9 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const DATA_DIR = path.join(__dirname)
-const PUBLIC_DIR = path.join(__dirname, '..', 'public')
-const DIST_DIR = path.join(__dirname, '..', 'dist')
 const DATA_FILE = path.join(DATA_DIR, 'reports.json')
-const PUBLIC_REPORTS_FILE = path.join(PUBLIC_DIR, 'reports.json')
 const LEGACY_DATA_FILE = path.join(DATA_DIR, 'legacy-reports.json')
+const ENABLE_PUBLIC_SNAPSHOT = process.env.ENABLE_REPORTS_SNAPSHOT === 'true'
 
 const backupCorruptedFile = async (filePath) => {
   if (!fs.existsSync(filePath)) return
@@ -32,8 +30,9 @@ let meta = { total: 0, lastUpdated: null }
 
 const ensureDirs = async () => {
   await fsPromises.mkdir(DATA_DIR, { recursive: true })
-  await fsPromises.mkdir(PUBLIC_DIR, { recursive: true })
-  await fsPromises.mkdir(DIST_DIR, { recursive: true })
+  if (ENABLE_PUBLIC_SNAPSHOT) {
+    await fsPromises.mkdir(path.join(__dirname, '..', 'public'), { recursive: true })
+  }
 }
 
 const readJsonFile = async (filePath) => {
@@ -50,13 +49,17 @@ const readJsonFile = async (filePath) => {
 const persistSnapshots = async () => {
   const payload = { reports, meta }
   await fsPromises.writeFile(DATA_FILE, JSON.stringify(payload, null, 2))
-  await fsPromises.writeFile(PUBLIC_REPORTS_FILE, JSON.stringify(payload, null, 2))
 
-  const latest = reports[0] || null
-  await fsPromises.writeFile(
-    path.join(PUBLIC_DIR, 'latest.json'),
-    JSON.stringify({ latest, generatedAt: meta.lastUpdated }, null, 2),
-  )
+  if (ENABLE_PUBLIC_SNAPSHOT) {
+    const latest = reports[0] || null
+    const publicDir = path.join(__dirname, '..', 'public')
+    await fsPromises.mkdir(publicDir, { recursive: true })
+    await fsPromises.writeFile(path.join(publicDir, 'reports.json'), JSON.stringify(payload, null, 2))
+    await fsPromises.writeFile(
+      path.join(publicDir, 'latest.json'),
+      JSON.stringify({ latest, generatedAt: meta.lastUpdated }, null, 2),
+    )
+  }
 }
 
 export const initStore = async () => {
