@@ -1,6 +1,13 @@
 import { randomUUID } from 'crypto'
 import { buildExcerpt, calculateReadTime, generateSlug, sanitizeExcerpt, SLUG_REGEX, UUID_REGEX, VALID_CATEGORIES } from './reportSchema.js'
 
+const slugify = (str = '') => str
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/(^-|-$)/g, '')
+
 const normalizeTags = (tags) => {
   if (!Array.isArray(tags)) return []
   return tags
@@ -31,7 +38,10 @@ const sanitizeHtmlBody = (html) => {
 
 export const normalizeIncomingReport = (report = {}) => {
   const rawContentUrl = report.contentUrl || report.pdfUrl || report.file || null
-  const safeSlug = report.slug && SLUG_REGEX.test(report.slug) ? report.slug : generateSlug(report.title || '')
+
+  const providedSlug = typeof report.slug === 'string' ? slugify(report.slug) : ''
+  const fallbackSlug = slugify(report.title || '') || generateSlug(report.title || 'relatorio')
+  const safeSlug = SLUG_REGEX.test(providedSlug) && providedSlug ? providedSlug : fallbackSlug
 
   const contentBlock = report.content && typeof report.content === 'object'
     ? report.content
@@ -49,6 +59,8 @@ export const normalizeIncomingReport = (report = {}) => {
   const excerpt = buildExcerpt({ ...report, content: normalizedContent })
   const ensuredId = report.id && UUID_REGEX.test(report.id) ? report.id : randomUUID()
 
+  const normalizedDate = report.date ?? report.publishedAt ?? new Date().toISOString()
+
   return {
     id: ensuredId,
     slug: safeSlug,
@@ -56,7 +68,7 @@ export const normalizeIncomingReport = (report = {}) => {
     excerpt,
     category: (report.category || '').toLowerCase() || 'tendencias',
     tags: normalizeTags(report.tags),
-    date: report.date,
+    date: normalizedDate,
     readTime: report.readTime ? Number(report.readTime) : calculateReadTime(normalizedContent),
     content: normalizedContent,
     contentUrl: rawContentUrl,
@@ -67,8 +79,12 @@ export const normalizeIncomingReport = (report = {}) => {
 }
 
 export const validateNormalizedReport = (report) => {
-  const requiredFields = ['id', 'slug', 'title', 'excerpt', 'category', 'date']
+  const requiredFields = ['id', 'slug', 'title', 'excerpt', 'category']
   const missing = requiredFields.filter((field) => !report?.[field])
+
+  const effectiveDate = report?.date
+  if (!effectiveDate) missing.push('date')
+
   if (missing.length) return `Campos obrigatórios faltando: ${missing.join(', ')}`
 
   if (!UUID_REGEX.test(report.id)) return 'ID inválido (uuid v4)'
@@ -76,7 +92,7 @@ export const validateNormalizedReport = (report) => {
 
   if (!sanitizeExcerpt(report.excerpt)) return 'Excerpt inválido'
 
-  const parsedDate = Date.parse(report.date)
+  const parsedDate = Date.parse(effectiveDate)
   if (Number.isNaN(parsedDate)) return 'Data inválida'
 
   if (!report.content && !report.contentUrl) return 'Envie content ou contentUrl'

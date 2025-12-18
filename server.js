@@ -1,7 +1,8 @@
 import http from 'http'
+import path from 'path'
 import fs from 'fs'
 import fsPromises from 'fs/promises'
-import path from 'path'
+import express from 'express'
 import { fileURLToPath } from 'url'
 import { normalizeIncomingReports } from './src/utils/serverReportUtils.js'
 import { findReportBySlug, getReports, initStore, upsertReports } from './data/reportsData.js'
@@ -11,10 +12,14 @@ const __dirname = path.dirname(__filename)
 
 const PORT = process.env.PORT || 3000
 const REPORTS_SECRET = process.env.REPORTS_SECRET_TOKEN
-const PAYLOAD_LIMIT = 1_000_000 // ~1MB
+const PAYLOAD_LIMIT = '2mb'
 
 const PUBLIC_DIR = path.join(__dirname, 'public')
 const DIST_DIR = path.join(__dirname, 'dist')
+
+const app = express()
+
+app.use(express.json({ limit: PAYLOAD_LIMIT, type: 'application/json' }))
 
 const getContentType = (filePath) => {
   const ext = path.extname(filePath).toLowerCase()
@@ -54,13 +59,14 @@ const serveStaticFile = async (res, filePath) => {
   }
 }
 
-const handleStaticRequest = async (req, res, pathname) => {
+const handleStaticRequest = async (req, res, next) => {
+  const pathname = req.path
   let decodedPath
   try {
     decodedPath = decodeURIComponent(pathname)
   } catch {
-    sendJson(res, 400, { error: 'URL inválida' })
-    return true
+    res.status(400).json({ error: 'URL inválida' })
+    return
   }
 
   if (decodedPath === '/reports.json' || decodedPath === '/latest.json' || decodedPath.startsWith('/public/')) {
@@ -70,57 +76,30 @@ const handleStaticRequest = async (req, res, pathname) => {
     const publicPath = path.join(PUBLIC_DIR, relativePath || '')
 
     if (!isPathInside(publicPath, PUBLIC_DIR)) {
-      sendJson(res, 403, { error: 'Caminho não permitido' })
-      return true
+      res.status(403).json({ error: 'Caminho não permitido' })
+      return
     }
 
     const served = await serveStaticFile(res, publicPath)
-    if (served) return true
+    if (served) return
   }
 
   const requestedPath = decodedPath === '/' ? '/index.html' : decodedPath
   const candidate = path.join(DIST_DIR, requestedPath)
 
   if (!isPathInside(candidate, DIST_DIR)) {
-    sendJson(res, 403, { error: 'Caminho não permitido' })
-    return true
+    res.status(403).json({ error: 'Caminho não permitido' })
+    return
   }
 
   const served = await serveStaticFile(res, candidate)
-  if (served) return true
+  if (served) return
 
   const indexPath = path.join(DIST_DIR, 'index.html')
-  return serveStaticFile(res, indexPath)
-}
+  const servedIndex = await serveStaticFile(res, indexPath)
+  if (servedIndex) return
 
-const parseBody = (req) => new Promise((resolve, reject) => {
-  let size = 0
-  const chunks = []
-
-  req
-    .on('data', (chunk) => {
-      size += chunk.length
-      if (size > PAYLOAD_LIMIT) {
-        reject(new Error('PAYLOAD_TOO_LARGE'))
-        req.destroy()
-      } else {
-        chunks.push(chunk)
-      }
-    })
-    .on('end', () => {
-      try {
-        const raw = Buffer.concat(chunks).toString('utf-8')
-        resolve(raw ? JSON.parse(raw) : {})
-      } catch (err) {
-        reject(new Error('INVALID_JSON'))
-      }
-    })
-    .on('error', reject)
-})
-
-const sendJson = (res, status, payload) => {
-  res.writeHead(status, { 'Content-Type': 'application/json' })
-  res.end(JSON.stringify(payload))
+  next()
 }
 
 const authenticateRequest = (req) => {
@@ -129,7 +108,9 @@ const authenticateRequest = (req) => {
   }
 
   const header = req.headers.authorization || ''
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null
+  const token = header.startsWith('Bearer ')
+    ? header.slice(7)
+    : null
 
   if (!token || token !== REPORTS_SECRET) {
     return { ok: false, status: 401, error: 'Não autorizado' }
@@ -138,102 +119,71 @@ const authenticateRequest = (req) => {
   return { ok: true }
 }
 
-const handlePostReports = async (req, res) => {
+app.post('/api/reports', async (req, res) => {
   const auth = authenticateRequest(req)
   if (!auth.ok) {
-    return sendJson(res, auth.status, { error: auth.error })
+    return res.status(auth.status).json({ error: auth.error })
   }
 
-  let body
-  try {
-    body = await parseBody(req)
-  } catch (error) {
-    if (error.message === 'PAYLOAD_TOO_LARGE') {
-      return sendJson(res, 413, { error: 'Payload muito grande' })
-    }
-    if (error.message === 'INVALID_JSON') {
-      return sendJson(res, 400, { error: 'JSON inválido' })
-    }
-    return sendJson(res, 500, { error: 'Erro ao ler payload' })
-  }
-
-  const incoming = normalizeIncomingReports(body)
+  const incoming = normalizeIncomingReports(req.body)
   if (incoming.length === 0) {
-    return sendJson(res, 400, { error: 'Payload deve ser um objeto ou array de relatórios' })
+    return res.status(400).json({ error: 'Payload deve ser um objeto ou array de relatórios' })
   }
 
   try {
     const payload = await upsertReports(incoming)
-    return sendJson(res, 201, {
+    return res.status(201).json({
       message: 'Relatórios armazenados com sucesso',
       total: payload.meta.total,
       lastUpdated: payload.meta.lastUpdated,
     })
   } catch (error) {
     console.error('Erro ao salvar relatórios', error)
-    return sendJson(res, 400, { error: error.message })
+    return res.status(400).json({ error: error.message })
   }
-}
+})
 
-const handleGetReports = (res, searchParams) => {
-  const limit = Math.max(1, Math.min(Number.parseInt(searchParams.get('limit'), 10) || 60, 200))
+app.get('/api/reports', (req, res) => {
+  const limit = Math.max(1, Math.min(Number.parseInt(req.query.limit, 10) || 60, 200))
   const data = getReports(limit)
 
-  return sendJson(res, 200, {
+  return res.status(200).json({
     reports: data.reports,
     meta: {
       total: data.meta.total,
       lastUpdated: data.meta.lastUpdated,
     },
   })
-}
+})
 
-const handleGetReportBySlug = (res, slug) => {
+app.get('/api/reports/:slug', (req, res) => {
+  const { slug } = req.params
   const report = findReportBySlug(slug)
   if (!report) {
-    return sendJson(res, 404, { error: 'Relatório não encontrado' })
+    return res.status(404).json({ error: 'Relatório não encontrado' })
   }
 
-  return sendJson(res, 200, report)
-}
+  return res.status(200).json(report)
+})
+
+app.use(handleStaticRequest)
+
+app.use((err, req, res, next) => {
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Payload muito grande' })
+  }
+
+  if (err instanceof SyntaxError && 'body' in err) {
+    return res.status(400).json({ error: 'JSON inválido' })
+  }
+
+  console.error('Erro interno no servidor', err)
+  return res.status(500).json({ error: 'Erro interno do servidor' })
+})
 
 await initStore()
 
-const server = http.createServer(async (req, res) => {
-  try {
-    let parsedUrl
-    try {
-      parsedUrl = new URL(req.url, `http://${req.headers.host}`)
-    } catch {
-      return sendJson(res, 400, { error: 'URL inválida' })
-    }
-
-    const { pathname, searchParams } = parsedUrl
-
-    if (req.method === 'POST' && pathname === '/api/reports') {
-      return handlePostReports(req, res)
-    }
-
-    if (req.method === 'GET' && pathname === '/api/reports') {
-      return handleGetReports(res, searchParams)
-    }
-
-    if (req.method === 'GET' && pathname.startsWith('/api/reports/')) {
-      const slug = pathname.replace('/api/reports/', '')
-      return handleGetReportBySlug(res, slug)
-    }
-
-    const served = await handleStaticRequest(req, res, pathname)
-    if (served) return null
-
-    res.statusCode = 404
-    res.end('Not Found')
-    return null
-  } catch (error) {
-    console.error('Erro interno no servidor', error)
-    return sendJson(res, 500, { error: 'Erro interno do servidor' })
-  }
-})
+const server = http.createServer(app)
 
 export default server
 
