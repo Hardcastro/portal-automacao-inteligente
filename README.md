@@ -5,7 +5,7 @@ SPA em React/Vite para exibir relatórios estratégicos servidos **sempre** pela
 ## ✨ Principais recursos
 - **Blog dinâmico**: carrega até 60 relatórios recentes via `reportsClient.getReports()` (API → fallback estático opcional → erro controlado) com cache em `localStorage`.
 - **Detalhe unificado**: `getReportBySlug` sempre busca `GET /api/reports/:slug`, reutiliza cache e só cai para fallback estático quando a API está indisponível.
-- **Normalização leve no front**: ajustes de slug, excerpt, tags, tempo de leitura e categoria em `src/utils/reportSchema.js`, alinhados ao contrato do backend.
+- **Normalização leve no front**: respeita o slug vindo da API e só ajusta excerpt, tags, tempo de leitura e categoria em `src/utils/reportSchema.js`, alinhados ao contrato do backend.
 - **Backend com validação forte**: o webhook de publicação (`POST /api/reports`) valida e normaliza antes de persistir.
 - **UI consistente**: cards reutilizáveis com badges de categoria, indicador de fallback, tempo de leitura, autor e selo “novo” para publicações recentes.
 

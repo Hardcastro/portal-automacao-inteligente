@@ -94,12 +94,14 @@ export const isNewReport = (dateString) => {
 export const normalizeReport = (report = {}, options = {}) => {
   if (!report || typeof report !== 'object') return null
 
+  const slug = typeof report.slug === 'string' ? report.slug.trim() : ''
+  if (!slug || !SLUG_REGEX.test(slug)) return null
+
   const content = normalizeContent(report.content)
   const category = normalizeCategory(report.category) || 'tendencias'
-  const slug = generateSlug(report.slug || report.title || '')
   const excerpt = extractExcerpt({ ...report, content })
 
-  if (!slug || !report.title || !report.date) return null
+  if (!report.title || !report.date) return null
 
   return {
     ...report,

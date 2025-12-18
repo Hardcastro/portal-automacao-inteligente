@@ -28,6 +28,48 @@ const backupCorruptedFile = async (filePath) => {
 let reports = []
 let meta = { total: 0, lastUpdated: null }
 
+const disambiguateSlug = (baseSlug, date, id, takenSlugs) => {
+  const sanitizedId = (id || '').replace(/[^a-z0-9]/gi, '').slice(0, 8)
+  const dateSuffix = date ? String(date).slice(0, 10).replace(/[^0-9]/g, '') : ''
+  const candidates = [
+    dateSuffix ? `${baseSlug}-${dateSuffix}` : null,
+    sanitizedId ? `${baseSlug}-${sanitizedId}` : null,
+  ].filter(Boolean)
+
+  for (const candidate of candidates) {
+    if (!takenSlugs.has(candidate)) return candidate
+  }
+
+  let counter = 2
+  let candidate = `${baseSlug}-${counter}`
+  while (takenSlugs.has(candidate)) {
+    counter += 1
+    candidate = `${baseSlug}-${counter}`
+  }
+  return candidate
+}
+
+const ensureUniqueSlugs = (incoming, existing) => {
+  const slugOwners = new Map(existing.map((report) => [report.slug, report.id]))
+
+  return incoming.map((report) => {
+    let finalSlug = report.slug
+    const currentOwner = slugOwners.get(finalSlug)
+
+    const hasDifferentOwner = currentOwner && currentOwner !== report.id
+    if (hasDifferentOwner) {
+      finalSlug = disambiguateSlug(report.slug, report.date, report.id, slugOwners)
+    }
+
+    while (slugOwners.has(finalSlug) && slugOwners.get(finalSlug) !== report.id) {
+      finalSlug = disambiguateSlug(report.slug, report.date, report.id, slugOwners)
+    }
+
+    slugOwners.set(finalSlug, report.id)
+    return { ...report, slug: finalSlug }
+  })
+}
+
 const ensureDirs = async () => {
   await fsPromises.mkdir(DATA_DIR, { recursive: true })
   if (ENABLE_PUBLIC_SNAPSHOT) {
@@ -74,7 +116,9 @@ export const initStore = async () => {
       ? legacyData.data
       : { reports: [], meta: { total: 0, lastUpdated: null } }
 
-  reports = Array.isArray(source.reports) ? source.reports.map(normalizeIncomingReport) : []
+  reports = Array.isArray(source.reports)
+    ? ensureUniqueSlugs(source.reports.map(normalizeIncomingReport), [])
+    : []
   reports.sort(sortByDateDesc)
   meta = {
     total: reports.length,
@@ -104,7 +148,7 @@ export const getReports = (limit) => {
 export const findReportBySlug = (slug) => reports.find((report) => report.slug === slug)
 
 export const upsertReports = async (incomingReports) => {
-  const normalized = incomingReports.map(normalizeIncomingReport)
+  const normalized = ensureUniqueSlugs(incomingReports.map(normalizeIncomingReport), reports)
   const invalid = normalized.map(validateNormalizedReport).find((message) => message)
   if (invalid) {
     throw new Error(invalid)

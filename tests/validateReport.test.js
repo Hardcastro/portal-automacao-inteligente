@@ -1,6 +1,6 @@
 import assert from 'node:assert'
 import { test } from 'node:test'
-import { generateSlug, normalizeReport, normalizeReportsCollection } from '../src/utils/reportSchema.js'
+import { normalizeReport, normalizeReportsCollection } from '../src/utils/reportSchema.js'
 
 const sample = {
   id: '123e4567-e89b-12d3-a456-426614174000',
@@ -12,9 +12,9 @@ const sample = {
   content: { type: 'html', body: '<p>Conteúdo detalhado</p>' },
 }
 
-test('normalizeReport gera slug e valores padrão', () => {
-  const normalized = normalizeReport({ ...sample, slug: undefined, author: undefined })
-  assert.equal(normalized.slug, generateSlug(sample.title))
+test('normalizeReport mantém slug fornecido e valores padrão', () => {
+  const normalized = normalizeReport({ ...sample, author: undefined })
+  assert.equal(normalized.slug, sample.slug)
   assert.equal(normalized.author, 'Motor Inteligente')
   assert.equal(normalized.category, 'geopolitica')
   assert.ok(normalized.readTime >= 1)
@@ -23,6 +23,13 @@ test('normalizeReport gera slug e valores padrão', () => {
 test('normalizeReport retorna null para payloads sem título', () => {
   const normalized = normalizeReport({ ...sample, title: '' })
   assert.equal(normalized, null)
+})
+
+test('normalizeReport retorna null para slug ausente ou inválido', () => {
+  const withoutSlug = normalizeReport({ ...sample, slug: '' })
+  const invalidSlug = normalizeReport({ ...sample, slug: 'Título Inválido!' })
+  assert.equal(withoutSlug, null)
+  assert.equal(invalidSlug, null)
 })
 
 test('normalizeReportsCollection ordena por data mais recente', () => {
