@@ -1,15 +1,63 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, AlertCircle, Loader2, Sparkles, Database, RefreshCw } from 'lucide-react'
+import {
+  ArrowLeft,
+  AlertCircle,
+  Loader2,
+  Sparkles,
+  Database,
+  RefreshCw,
+  ExternalLink,
+} from 'lucide-react'
 import Card from '../components/UI/Card'
 import Button from '../components/UI/Button'
 import { getReportBySlug } from '../api/reportsClient'
+import { formatDate, getCategoryName } from '../utils/reportHelpers'
 
 const buildSourceLabel = (source) => {
   if (source === 'fallback') return 'Fallback estático'
   if (source === 'cache') return 'Cache local'
   return 'API do backend'
+}
+
+const sanitizeHtml = (html) => {
+  if (!html) return ''
+  const withoutScripts = html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+  const withoutEvents = withoutScripts.replace(/ on\w+=("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+  return withoutEvents.replace(/javascript:/gi, '')
+}
+
+const convertMarkdownToHtml = (markdown = '') => {
+  const normalized = markdown.trim()
+  if (!normalized) return ''
+
+  const escaped = normalized
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+  const withBlocks = escaped
+    .replace(/^###### (.*)$/gm, '<h6>$1</h6>')
+    .replace(/^##### (.*)$/gm, '<h5>$1</h5>')
+    .replace(/^#### (.*)$/gm, '<h4>$1</h4>')
+    .replace(/^### (.*)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.*)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.*)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+
+  return withBlocks
+    .split(/\n{2,}/)
+    .map((block) => {
+      const trimmed = block.trim()
+      if (!trimmed) return ''
+      if (/^<h[1-6]>/.test(trimmed)) return trimmed
+      return `<p>${trimmed.replace(/\n/g, '<br />')}</p>`
+    })
+    .filter(Boolean)
+    .join('')
 }
 
 const BlogPost = () => {
@@ -18,6 +66,7 @@ const BlogPost = () => {
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [renderedBody, setRenderedBody] = useState('')
 
   const fetchReport = useCallback(async () => {
     if (!slug) return
@@ -37,6 +86,22 @@ const BlogPost = () => {
       setLoading(false)
     }
   }, [slug])
+
+  useEffect(() => {
+    if (!report) {
+      setRenderedBody('')
+      return
+    }
+
+    if (report?.content?.body) {
+      const isMarkdown = report.content?.type === 'markdown'
+      const html = isMarkdown ? convertMarkdownToHtml(report.content.body) : report.content.body
+      setRenderedBody(sanitizeHtml(html))
+      return
+    }
+
+    setRenderedBody('')
+  }, [report])
 
   useEffect(() => {
     fetchReport()
@@ -143,11 +208,39 @@ const BlogPost = () => {
           {report && (
             <Card key={report.slug} className="mb-6">
               <h2 className="text-2xl font-bold text-mist-gray mb-2">{report.title}</h2>
-              <p className="text-blue-gray text-sm mb-4">Por {report.author} — {report.date}</p>
-              <div
-                className="prose prose-invert"
-                dangerouslySetInnerHTML={{ __html: report.content?.body || '' }}
-              />
+              <p className="text-blue-gray text-sm mb-4">
+                Por {report.author} — {formatDate(report.date)} • {getCategoryName(report.category)}
+                {report.readTime ? ` • ${report.readTime} min de leitura` : ''}
+              </p>
+
+              {renderedBody && (
+                <div
+                  className="prose prose-invert"
+                  dangerouslySetInnerHTML={{ __html: renderedBody }}
+                />
+              )}
+
+              {!renderedBody && report.contentUrl && (
+                <div className="space-y-3">
+                  <p className="text-blue-gray">
+                    Este relatório está disponível como documento externo. Abra o arquivo para ler o conteúdo completo.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    href={report.contentUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2"
+                  >
+                    Abrir documento
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+
+              {!renderedBody && !report.contentUrl && (
+                <p className="text-blue-gray">Conteúdo indisponível para este relatório.</p>
+              )}
             </Card>
           )}
 

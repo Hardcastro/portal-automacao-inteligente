@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename)
 const DATA_DIR = path.join(__dirname)
 const DATA_FILE = path.join(DATA_DIR, 'reports.json')
 const LEGACY_DATA_FILE = path.join(DATA_DIR, 'legacy-reports.json')
+const EXAMPLE_FILE = path.join(__dirname, '..', 'src', 'data', 'reports.example.json')
 const ENABLE_PUBLIC_SNAPSHOT = process.env.ENABLE_REPORTS_SNAPSHOT === 'true'
 
 const backupCorruptedFile = async (filePath) => {
@@ -109,12 +110,15 @@ export const initStore = async () => {
 
   const existing = await readJsonFile(DATA_FILE)
   const legacyData = await readJsonFile(LEGACY_DATA_FILE)
+  const bundledExample = await readJsonFile(EXAMPLE_FILE)
 
   const source = existing.ok
     ? existing.data
     : legacyData.ok
       ? legacyData.data
-      : { reports: [], meta: { total: 0, lastUpdated: null } }
+      : bundledExample.ok
+        ? bundledExample.data
+        : { reports: [], meta: { total: 0, lastUpdated: null } }
 
   reports = Array.isArray(source.reports)
     ? ensureUniqueSlugs(source.reports.map(normalizeIncomingReport), [])
