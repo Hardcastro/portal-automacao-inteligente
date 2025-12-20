@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: portal-automacao-inteligente
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: REPORTS_SECRET_TOKEN
+        generateValue: true
+      - key: ENABLE_REPORTS_SNAPSHOT
+        value: true
+      - key: VITE_REPORTS_API_URL
+        sync: false
+      - key: VITE_REPORTS_FALLBACK_URL
+        sync: false
+      - key: VITE_ENABLE_REPORTS_EXAMPLE
+        value: true
