@@ -13,7 +13,6 @@ const buildDefaultFallbackUrl = () => {
 }
 
 export const REPORTS_API_URL = import.meta.env?.VITE_REPORTS_API_URL || buildDefaultApiUrl()
-export const ACTIVEPIECES_WEBHOOK_BLOG = import.meta.env?.VITE_ACTIVEPIECES_WEBHOOK_BLOG || null
 export const REPORTS_FALLBACK_URL = import.meta.env?.VITE_REPORTS_FALLBACK_URL || buildDefaultFallbackUrl()
 export const RECOMMENDED_LIMIT = 60
 export const DEFAULT_AUTHOR = 'Motor Inteligente'

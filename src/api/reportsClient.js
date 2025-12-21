@@ -1,11 +1,5 @@
 import exampleData from '../data/reports.example.json'
-import {
-  ACTIVEPIECES_WEBHOOK_BLOG,
-  MAX_CACHE_ITEMS,
-  RECOMMENDED_LIMIT,
-  REPORTS_API_URL,
-  REPORTS_FALLBACK_URL,
-} from '../constants'
+import { MAX_CACHE_ITEMS, RECOMMENDED_LIMIT, REPORTS_API_URL, REPORTS_FALLBACK_URL } from '../constants'
 import { normalizeReport, normalizeReportsCollection } from '../utils/reportSchema'
 import { getWithTTL, setWithTTL } from '../utils/storage'
 
@@ -77,7 +71,6 @@ const normalizePayload = (reports, options) => normalizeReportsCollection(report
 const loadFromSources = async ({ limit }) => {
   const sources = [
     { url: buildUrlWithLimit(REPORTS_API_URL, limit), isFallback: false, dataSource: 'api' },
-    { url: buildUrlWithLimit(ACTIVEPIECES_WEBHOOK_BLOG, limit), isFallback: false, dataSource: 'webhook' },
     { url: buildUrlWithLimit(REPORTS_FALLBACK_URL, limit), isFallback: true, dataSource: 'fallback' },
   ].filter((entry) => entry.url)
 
