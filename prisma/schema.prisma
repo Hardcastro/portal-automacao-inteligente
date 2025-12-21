@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  DISABLED
+  REVOKED
+}
+
+enum OutboxEventStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  FAILED
+  DEAD_LETTER
+}
+
+enum AutomationRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  DEAD_LETTER
+}
+
+enum IdempotencyKeyStatus {
+  PENDING
+  COMPLETED
+  CONFLICT
+  EXPIRED
+}
+
+model Tenant {
+  id              String           @id @default(uuid()) @db.Uuid
+  slug            String           @unique
+  name            String
+  apiKeys         ApiKey[]
+  reports         Report[]
+  automationRuns  AutomationRun[]
+  outboxEvents    OutboxEvent[]
+  idempotencyKeys IdempotencyKey[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model ApiKey {
+  id         String       @id @default(uuid()) @db.Uuid
+  tenantId   String       @db.Uuid
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name       String
+  scopes     String[]
+  keyHash    String
+  status     ApiKeyStatus @default(ACTIVE)
+  lastUsedAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([tenantId])
+  @@unique([tenantId, name])
+}
+
+model Report {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  slug        String
+  title       String
+  summary     String?
+  content     Json
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, publishedAt])
+  @@index([tenantId, createdAt])
+}
+
+model AutomationRun {
+  id             String               @id @default(uuid()) @db.Uuid
+  tenantId       String               @db.Uuid
+  tenant         Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  correlationId  String
+  provider       String               @default("activepieces")
+  providerRunId  String?
+  status         AutomationRunStatus  @default(QUEUED)
+  input          Json?
+  output         Json?
+  error          Json?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([tenantId, correlationId])
+  @@index([tenantId, providerRunId])
+  @@index([tenantId, status])
+}
+
+model OutboxEvent {
+  id          String             @id @default(uuid()) @db.Uuid
+  tenantId    String             @db.Uuid
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type        String
+  payload     Json
+  status      OutboxEventStatus  @default(PENDING)
+  attempts    Int                @default(0)
+  nextRetryAt DateTime?
+  lastError   String?
+  lockedAt    DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, nextRetryAt])
+  @@index([tenantId, lockedAt])
+}
+
+model IdempotencyKey {
+  id            String                @id @default(uuid()) @db.Uuid
+  tenantId      String                @db.Uuid
+  tenant        Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  key           String
+  method        String
+  path          String
+  requestHash   String
+  responseBody  Json?
+  statusCode    Int?
+  recoveryPoint String?
+  expiresAt     DateTime?
+  status        IdempotencyKeyStatus  @default(PENDING)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@unique([tenantId, key])
+  @@index([tenantId, expiresAt])
+}
