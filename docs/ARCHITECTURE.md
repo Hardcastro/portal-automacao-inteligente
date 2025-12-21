@@ -56,3 +56,13 @@ Componentes transversais planejados:
 - Finalizar a camada Prisma com migrations + seed controlado.
 - Criar base de env (`.env.example`) com DATABASE_URL/REDIS_URL/API_KEY_PEPPER e VITE_* públicos.
 - Preparar scripts `npm run db:migrate:deploy` e `npm run db:seed` para os ambientes Render/local.
+
+## Fluxos v1 implementados
+1) **Relatórios**: `POST /v1/tenants/:tenantId/reports` aplica autenticação por API Key, enforcement de tenant/escopos, rate limit e idempotência persistente. Cada upsert gera `outbox_events` na mesma transação. O worker lê `outbox_events` (retry/backoff) e dispara o webhook ActivePieces com `requestId/correlationId`, enviando falhas para DLQ.
+2) **Automações**: `POST /v1/tenants/:tenantId/automation-runs` valida idempotência, grava `automation_runs` como `queued` e enfileira no worker de automação (correlationId propagado). O callback assinado (`/v1/webhooks/activepieces/callback`) aplica HMAC + anti-replay por nonce/timestamp via Redis e atualiza o `automation_run` para `SUCCEEDED/FAILED`, enquanto o GET retorna status/output.
+
+## Observabilidade e consistência
+- `requestId` aceito por header ou gerado automaticamente e devolvido em todas as respostas; logs JSON incluem `requestId`, `tenantId`, rota e latência.
+- Envelope de erro padronizado no estilo RFC7807: `{type,title,status,detail,requestId,correlationId}`.
+- Rate limit por tenant/rota com Redis em memória e cabeçalho `Retry-After` em 429.
+- Em ambientes sem Postgres/Redis disponíveis, os clientes usam fallback em memória para desenvolvimento/testes. Em produção, configure os endpoints gerenciados e aplique as migrações do Prisma.

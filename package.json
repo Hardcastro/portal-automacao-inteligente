@@ -8,6 +8,9 @@
     "build": "npx vite build",
     "start": "vite preview --host 0.0.0.0 --port ${PORT:-4173}",
     "test": "node --test",
+    "api": "node apps/api/server.js",
+    "worker": "node apps/worker/index.js",
+    "dev:api": "NODE_ENV=development node --watch apps/api/server.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "db:generate": "prisma generate",
@@ -17,8 +20,6 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@prisma/client": "^5.16.1",
-    "dotenv": "^16.4.5",
     "framer-motion": "^10.16.16",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",
@@ -27,7 +28,6 @@
     "vite": "^5.0.8"
   },
   "devDependencies": {
-    "prisma": "^5.16.1",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
