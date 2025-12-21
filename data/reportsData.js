@@ -2,16 +2,18 @@ import fs from 'fs'
 import fsPromises from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import config from '../src/server/config.js'
 import { normalizeIncomingReport, sortByDateDesc, validateNormalizedReport } from '../src/utils/serverReportUtils.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const DATA_DIR = path.join(__dirname)
+const DATA_DIR = config.dataDir
+const PUBLIC_DIR = config.publicDir
 const DATA_FILE = path.join(DATA_DIR, 'reports.json')
 const LEGACY_DATA_FILE = path.join(DATA_DIR, 'legacy-reports.json')
 const EXAMPLE_FILE = path.join(__dirname, '..', 'src', 'data', 'reports.example.json')
-const ENABLE_PUBLIC_SNAPSHOT = process.env.ENABLE_REPORTS_SNAPSHOT === 'true'
+const ENABLE_PUBLIC_SNAPSHOT = config.enablePublicSnapshot
 
 const backupCorruptedFile = async (filePath) => {
   if (!fs.existsSync(filePath)) return
@@ -74,7 +76,7 @@ const ensureUniqueSlugs = (incoming, existing) => {
 const ensureDirs = async () => {
   await fsPromises.mkdir(DATA_DIR, { recursive: true })
   if (ENABLE_PUBLIC_SNAPSHOT) {
-    await fsPromises.mkdir(path.join(__dirname, '..', 'public'), { recursive: true })
+    await fsPromises.mkdir(PUBLIC_DIR, { recursive: true })
   }
 }
 
@@ -95,11 +97,10 @@ const persistSnapshots = async () => {
 
   if (ENABLE_PUBLIC_SNAPSHOT) {
     const latest = reports[0] || null
-    const publicDir = path.join(__dirname, '..', 'public')
-    await fsPromises.mkdir(publicDir, { recursive: true })
-    await fsPromises.writeFile(path.join(publicDir, 'reports.json'), JSON.stringify(payload, null, 2))
+    await fsPromises.mkdir(PUBLIC_DIR, { recursive: true })
+    await fsPromises.writeFile(path.join(PUBLIC_DIR, 'reports.json'), JSON.stringify(payload, null, 2))
     await fsPromises.writeFile(
-      path.join(publicDir, 'latest.json'),
+      path.join(PUBLIC_DIR, 'latest.json'),
       JSON.stringify({ latest, generatedAt: meta.lastUpdated }, null, 2),
     )
   }
@@ -170,3 +171,13 @@ export const upsertReports = async (incomingReports) => {
   await persistSnapshots()
   return { reports, meta }
 }
+
+export const getStoreMeta = () => ({ ...meta })
+
+export const getSnapshotPaths = () => ({
+  dataDir: DATA_DIR,
+  publicDir: PUBLIC_DIR,
+  dataFile: DATA_FILE,
+  legacyFile: LEGACY_DATA_FILE,
+  snapshotsEnabled: ENABLE_PUBLIC_SNAPSHOT,
+})

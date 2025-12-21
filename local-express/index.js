@@ -37,6 +37,26 @@ const runHandler = async (handler, args, next) => {
 
 const express = () => {
   const stack = []
+  const composeHandlers = (handlers = []) => (req, res, next) => {
+    const chain = handlers.flat().filter(Boolean)
+    let idx = 0
+
+    const step = (err) => {
+      const handler = chain[idx]
+      idx += 1
+
+      if (!handler) return next(err)
+
+      const isErrorHandler = handler.length === 4
+      if (err && !isErrorHandler) return step(err)
+      if (!err && isErrorHandler) return step()
+
+      const params = isErrorHandler ? [err, req, res, step] : [req, res, step]
+      return runHandler(handler, params, step)
+    }
+
+    return step()
+  }
 
   const app = (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`)
@@ -115,17 +135,25 @@ const express = () => {
     next()
   }
 
-  app.use = (pathOrHandler, maybeHandler) => {
+  app.use = (pathOrHandler, ...maybeHandlers) => {
     const isPathString = typeof pathOrHandler === 'string'
-    const handler = isPathString ? maybeHandler : pathOrHandler
+    const handlerList = isPathString ? maybeHandlers : [pathOrHandler, ...maybeHandlers]
     const layerPath = isPathString ? pathOrHandler : null
-    const isError = typeof handler === 'function' && handler.length === 4
-    stack.push({ type: 'middleware', path: layerPath, handler, isError })
+
+    handlerList
+      .filter(Boolean)
+      .forEach((handler) => {
+        const isError = typeof handler === 'function' && handler.length === 4
+        stack.push({ type: 'middleware', path: layerPath, handler, isError })
+      })
+
     return app
   }
 
-  const registerRoute = (method) => (routePath, handler) => {
-    stack.push({ type: 'route', method, path: routePath, handler })
+  const registerRoute = (method) => (routePath, ...handlers) => {
+    const chain = handlers.length > 0 ? handlers : [(req, res, next) => next()]
+    const composed = composeHandlers(chain)
+    stack.push({ type: 'route', method, path: routePath, handler: composed })
     return app
   }
 

@@ -23,6 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 
+# Runtime snapshots
+data/reports.json
+data/legacy-reports.json
+public/reports.json
+public/latest.json
+
 
 # Environment variables
 .env
