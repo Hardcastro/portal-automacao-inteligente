@@ -129,6 +129,7 @@ model IdempotencyKey {
   path          String
   requestHash   String
   responseBody  Json?
+  responseHeaders Json?
   statusCode    Int?
   recoveryPoint String?
   expiresAt     DateTime?
@@ -136,6 +137,6 @@ model IdempotencyKey {
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
 
-  @@unique([tenantId, key])
+  @@unique([tenantId, key, method, path])
   @@index([tenantId, expiresAt])
 }

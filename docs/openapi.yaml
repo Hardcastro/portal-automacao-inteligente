@@ -1,0 +1,307 @@
+openapi: 3.1.0
+info:
+  title: Portal Automação Inteligente API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+    description: Produção
+  - url: http://localhost:3000
+    description: Local
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API_KEY
+  parameters:
+    XRequestId:
+      in: header
+      name: X-Request-Id
+      required: false
+      schema:
+        type: string
+      description: ID de correlação/requisição propagado nos logs.
+  schemas:
+    Report:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        content:
+          type: object
+        publishedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    AutomationRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        correlationId:
+          type: string
+        status:
+          type: string
+          enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, DEAD_LETTER]
+        output:
+          type: object
+          nullable: true
+        error:
+          type: object
+          nullable: true
+        providerRunId:
+          type: string
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        requestId:
+          type: string
+        correlationId:
+          type: string
+paths:
+  /v1/tenants/{tenantId}/reports:
+    get:
+      security:
+        - ApiKeyAuth: []
+      summary: Lista relatórios de um tenant
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            maximum: 200
+        - in: query
+          name: cursor
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Lista paginada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
+                  meta:
+                    type: object
+                    properties:
+                      nextCursor:
+                        type: string
+                        nullable: true
+        '401':
+          description: Não autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Escopo insuficiente
+    post:
+      security:
+        - ApiKeyAuth: []
+      summary: Cria ou atualiza relatórios (batch)
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/Report'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/Report'
+      responses:
+        '201':
+          description: Criado/atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  created:
+                    type: integer
+                  updated:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        slug:
+                          type: string
+                        action:
+                          type: string
+        '409':
+          description: Conflito de idempotência
+  /v1/tenants/{tenantId}/reports/latest:
+    get:
+      security:
+        - ApiKeyAuth: []
+      summary: Retorna o relatório mais recente
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Último relatório
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  latest:
+                    $ref: '#/components/schemas/Report'
+        '404':
+          description: Não encontrado
+  /v1/tenants/{tenantId}/automation-runs:
+    post:
+      security:
+        - ApiKeyAuth: []
+      summary: Enfileira uma automação
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '202':
+          description: Enfileirado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runId:
+                    type: string
+                  correlationId:
+                    type: string
+        '401':
+          description: Não autorizado
+        '403':
+          description: Escopo insuficiente
+        '409':
+          description: Conflito de idempotência
+  /v1/tenants/{tenantId}/automation-runs/{runId}:
+    get:
+      security:
+        - ApiKeyAuth: []
+      summary: Consulta status de automação
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Status atual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationRun'
+        '404':
+          description: Não encontrado
+  /v1/webhooks/activepieces/callback:
+    post:
+      summary: Callback assinado ActivePieces
+      description: Valida HMAC (X-Signature) + nonce/timestamp para anti-replay e atualiza automation_run.
+      parameters:
+        - in: header
+          name: X-Signature
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: X-Timestamp
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: X-Nonce
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                correlationId:
+                  type: string
+                providerRunId:
+                  type: string
+                status:
+                  type: string
+                output:
+                  type: object
+      responses:
+        '200':
+          description: Callback aceito
+        '401':
+          description: Assinatura inválida
+        '409':
+          description: Replay detectado

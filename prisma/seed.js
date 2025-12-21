@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import crypto from 'node:crypto'
-import { ApiKeyStatus, PrismaClient } from '@prisma/client'
+import { ApiKeyStatus, PrismaClient } from '../apps/shared/prismaClient.js'
 
 const prisma = new PrismaClient()
 
