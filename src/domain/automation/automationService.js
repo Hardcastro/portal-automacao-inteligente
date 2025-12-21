@@ -1,26 +1,19 @@
 import { randomUUID } from 'crypto'
 import config from '../../server/config.js'
-import { createActivepiecesClient } from '../../integrations/activepieces/activepiecesClient.js'
-import { mapBlogAutomationPayload } from '../../integrations/activepieces/activepiecesMapper.js'
+import { createIdempotencyStore } from '../../infrastructure/idempotency/index.js'
+import {
+  createAutomationRun,
+  findAutomationRunByCorrelation,
+  updateAutomationRunStatus,
+} from '../../../data/automationRunStore.js'
+import { getQueueAdapter } from '../../queue/automationQueue.js'
 
-let cachedClient
-let lastFetch
+const idempotencyStore = createIdempotencyStore({
+  redisUrl: config.redisUrl,
+  ttlMs: config.idempotency.ttlMs,
+})
 
-const getClient = () => {
-  if (!cachedClient || lastFetch !== global.fetch) {
-    cachedClient = createActivepiecesClient({
-      signingSecret: config.activepieces.signingSecret,
-      timeoutMs: config.activepieces.timeoutMs,
-      retryMax: config.activepieces.retryMax,
-      allowedHostnames: config.activepieces.allowedHostnames,
-      fetchImpl: global.fetch,
-    })
-    lastFetch = global.fetch
-  }
-  return cachedClient
-}
-
-export const triggerBlogAutomation = async ({ reports = [], requestId }) => {
+export const getOrCreateAutomationRun = async ({ reports = [], idempotencyKey }) => {
   if (!config.activepieces.webhookBlogUrl) {
     const error = new Error('Webhook do Activepieces não configurado')
     error.status = 503
@@ -33,14 +26,36 @@ export const triggerBlogAutomation = async ({ reports = [], requestId }) => {
     throw error
   }
 
+  const cached = await idempotencyStore.getResult(idempotencyKey)
+  if (cached) {
+    return { ...cached, idempotent: true }
+  }
+
+  const claimResult = await idempotencyStore.claim(idempotencyKey, config.idempotency.ttlMs)
+  if (claimResult?.result) {
+    return { ...claimResult.result, idempotent: true }
+  }
+
   const correlationId = randomUUID()
-  const payload = mapBlogAutomationPayload({ correlationId, reports })
-  const client = getClient()
-  const result = await client.triggerWebhook({
-    url: config.activepieces.webhookBlogUrl,
-    payload,
-    requestId,
+  const run = await createAutomationRun({
+    type: 'blog',
+    input: { reports },
+    correlationId,
+    idempotencyKey: idempotencyKey || null,
   })
 
-  return { correlationId, result }
+  const queue = getQueueAdapter()
+  await queue.enqueue('activepieces.trigger', { correlationId, reports })
+
+  const response = { correlationId, status: 'queued' }
+  await idempotencyStore.storeResult(idempotencyKey, response, config.idempotency.ttlMs)
+
+  return response
 }
+
+export const updateAutomationStatus = async ({ correlationId, status, output, providerRunId }) => {
+  const updated = await updateAutomationRunStatus(correlationId, status, { output, providerRunId })
+  return updated
+}
+
+export const findAutomationRun = (correlationId) => findAutomationRunByCorrelation(correlationId)

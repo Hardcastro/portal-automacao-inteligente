@@ -30,9 +30,15 @@ ENABLE_REPORTS_SNAPSHOT=true
 # Integração Activepieces (backend)
 ACTIVEPIECES_WEBHOOK_BLOG_URL=https://api.activepieces.com/webhook/SEU_WEBHOOK_ID
 ACTIVEPIECES_SIGNING_SECRET=defina-um-segredo-forte
+ACTIVEPIECES_CALLBACK_SIGNING_SECRET=segredo-para-validar-callbacks
 ACTIVEPIECES_TIMEOUT_MS=8000
 ACTIVEPIECES_RETRY_MAX=3
 ACTIVEPIECES_ALLOWED_HOSTNAMES=api.activepieces.com
+# Idempotência e fila (opcionais)
+REDIS_URL= # ex: redis://default:senha@host:6379
+IDEMPOTENCY_TTL_MS=600000
+QUEUE_DRIVER=bullmq # ou sqs|memory
+QUEUE_PREFIX=pai
 # Rate limit do endpoint de automação (opcional)
 AUTOMATION_RATE_LIMIT_WINDOW_MS=60000
 AUTOMATION_RATE_LIMIT_MAX=20
