@@ -47,9 +47,14 @@ fontes de verdade duplicadas). Você pode ainda customizar o backend com:
 Automação/Activepieces (backend-only — **não usar `VITE_*`**):
 - `ACTIVEPIECES_WEBHOOK_BLOG_URL`: URL do webhook/trigger do flow.
 - `ACTIVEPIECES_SIGNING_SECRET`: segredo para assinar chamadas com HMAC (`X-Signature`).
+- `ACTIVEPIECES_CALLBACK_SIGNING_SECRET`: segredo para validar callbacks/HMAC recebidos.
 - `ACTIVEPIECES_TIMEOUT_MS`: timeout das chamadas (default `8000`).
 - `ACTIVEPIECES_RETRY_MAX`: tentativas com backoff (default `3`).
 - `ACTIVEPIECES_ALLOWED_HOSTNAMES`: allowlist de hostnames para evitar SSRF (default `api.activepieces.com`).
+- `REDIS_URL`: ativa uso de Redis para idempotência e BullMQ (opcional).
+- `IDEMPOTENCY_TTL_MS`: TTL em ms para cache de idempotência (default 10 min).
+- `QUEUE_DRIVER`: `bullmq|sqs|memory` (default `bullmq` com `REDIS_URL`, senão `memory`).
+- `QUEUE_PREFIX`: prefixo das filas (default `pai`).
 - `AUTOMATION_RATE_LIMIT_WINDOW_MS` / `AUTOMATION_RATE_LIMIT_MAX`: limites de requisições no endpoint de automação (default 60s/20 req).
 
 ## 🚀 Como rodar

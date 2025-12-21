@@ -21,7 +21,14 @@ export const createApp = () => {
 
   app.use(requestIdMiddleware)
   app.use(requestLogger(console))
-  app.use(express.json({ limit: config.payloadLimit, type: 'application/json' }))
+  app.use(express.json({
+    limit: config.payloadLimit,
+    type: 'application/json',
+    verify: (req, res, buf) => {
+      // armazena o raw body para verificação de HMAC
+      req.rawBody = buf ? buf.toString('utf-8') : ''
+    },
+  }))
   app.use(securityHeaders)
 
   registerHealthRoutes(app)

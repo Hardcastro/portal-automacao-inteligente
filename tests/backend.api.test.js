@@ -105,3 +105,21 @@ test('limite de listagem é ajustado para máximo permitido', async () => {
   assert.equal(limitResponse.status, 200)
   assert.ok(payload.reports.length <= 200)
 })
+
+test('GET /api/reports e /api/reports/:slug retornam ETag e suportam 304', async () => {
+  const listResponse = await fetch(`${baseUrl}/api/reports`)
+  const etag = listResponse.headers.get('etag')
+  assert.ok(etag)
+
+  const conditional = await fetch(`${baseUrl}/api/reports`, { headers: { 'If-None-Match': etag } })
+  assert.equal(conditional.status, 304)
+
+  const detailResponse = await fetch(`${baseUrl}/api/reports/panorama-semanal`)
+  const detailEtag = detailResponse.headers.get('etag')
+  assert.ok(detailEtag)
+
+  const detailConditional = await fetch(`${baseUrl}/api/reports/panorama-semanal`, {
+    headers: { 'If-None-Match': detailEtag },
+  })
+  assert.equal(detailConditional.status, 304)
+})
