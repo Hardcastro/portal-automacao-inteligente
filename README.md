@@ -38,7 +38,10 @@ cp .env.production.example .env.production
 
 No backend (Node), defina `REPORTS_SECRET_TOKEN` para autorizar publicações via `POST /api/reports`. Se precisar gerar um snapshot
 estático em `public/reports.json` e `public/latest.json`, habilite `ENABLE_REPORTS_SNAPSHOT=true` (desabilitado por padrão para evitar
-fontes de verdade duplicadas).
+fontes de verdade duplicadas). Você pode ainda customizar o backend com:
+- `PAYLOAD_LIMIT`: define o limite do `POST /api/reports` (padrão `2mb`)
+- `REPORTS_DATA_DIR`: diretório onde `reports.json`/`legacy-reports.json` são escritos (padrão `./data`)
+- `REPORTS_PUBLIC_DIR`: diretório de snapshots públicos (`./public` por padrão quando `ENABLE_REPORTS_SNAPSHOT=true`)
 
 ## 🚀 Como rodar
 1) Instalar dependências
@@ -61,7 +64,7 @@ npm run build
 ```bash
 npm start
 ```
-O servidor HTTP usa os arquivos já gerados em `dist/`, expõe `/api/reports`, `/api/reports/:slug` e pode publicar snapshots opcionais em `/public/reports.json` e `/public/latest.json` quando `ENABLE_REPORTS_SNAPSHOT=true`.
+O servidor HTTP usa os arquivos já gerados em `dist/`, expõe `/api/reports`, `/api/reports/:slug`, `/api/health` e pode publicar snapshots opcionais em `/public/reports.json` e `/public/latest.json` quando `ENABLE_REPORTS_SNAPSHOT=true`.
 
 5) Pré-visualizar o build (apenas front-end)
 ```bash

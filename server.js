@@ -6,16 +6,24 @@ import express from 'express'
 import { fileURLToPath } from 'url'
 import { timingSafeEqual } from 'crypto'
 import { normalizeIncomingReports } from './src/utils/serverReportUtils.js'
-import { findReportBySlug, getReports, initStore, upsertReports } from './data/reportsData.js'
+import config from './src/server/config.js'
+import {
+  findReportBySlug,
+  getReports,
+  getSnapshotPaths,
+  getStoreMeta,
+  initStore,
+  upsertReports,
+} from './data/reportsData.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const PORT = process.env.PORT || 3000
-const REPORTS_SECRET = process.env.REPORTS_SECRET_TOKEN
-const PAYLOAD_LIMIT = '2mb'
+const PORT = config.port
+const REPORTS_SECRET = config.reportsSecret
+const PAYLOAD_LIMIT = config.payloadLimit
 
-const PUBLIC_DIR = path.join(__dirname, 'public')
+const PUBLIC_DIR = config.publicDir
 const DIST_DIR = path.join(__dirname, 'dist')
 
 const app = express()
@@ -194,6 +202,21 @@ app.get('/api/reports', (req, res) => {
     meta: {
       total: data.meta.total,
       lastUpdated: data.meta.lastUpdated,
+    },
+  })
+})
+
+app.get('/api/health', (req, res) => {
+  const meta = getStoreMeta()
+  const snapshots = getSnapshotPaths()
+
+  return res.status(200).json({
+    status: 'ok',
+    meta,
+    storage: {
+      dataDir: snapshots.dataDir,
+      publicDir: snapshots.publicDir,
+      snapshotsEnabled: snapshots.snapshotsEnabled,
     },
   })
 })
