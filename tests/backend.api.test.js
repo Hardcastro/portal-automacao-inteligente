@@ -77,6 +77,7 @@ test('publicação autenticada persiste relatórios, snapshots e health check', 
   assert.equal(listResponse.status, 200)
   assert.ok(listPayload.reports.length >= 1)
   assert.ok(listPayload.reports.some((report) => report.slug === sample.slug))
+  assert.ok(listPayload.meta.total >= 1)
 
   const detailResponse = await fetch(`${baseUrl}/api/reports/${sample.slug}`)
   const detail = await detailResponse.json()
@@ -96,4 +97,11 @@ test('publicação autenticada persiste relatórios, snapshots e health check', 
   const reportsSnapshot = await fs.readFile(path.join(publicDir, 'reports.json'), 'utf-8')
   assert.ok(latestSnapshot.length > 0)
   assert.ok(reportsSnapshot.length > 0)
+})
+
+test('limite de listagem é ajustado para máximo permitido', async () => {
+  const limitResponse = await fetch(`${baseUrl}/api/reports?limit=500`)
+  const payload = await limitResponse.json()
+  assert.equal(limitResponse.status, 200)
+  assert.ok(payload.reports.length <= 200)
 })

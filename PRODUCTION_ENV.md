@@ -27,6 +27,15 @@ NODE_ENV=production
 PORT=3000
 REPORTS_SECRET_TOKEN=b7429f76ab81f8b9d771987064bfe1c90a4138a7de65ba0442b01f62e36ad829
 ENABLE_REPORTS_SNAPSHOT=true
+# Integração Activepieces (backend)
+ACTIVEPIECES_WEBHOOK_BLOG_URL=https://api.activepieces.com/webhook/SEU_WEBHOOK_ID
+ACTIVEPIECES_SIGNING_SECRET=defina-um-segredo-forte
+ACTIVEPIECES_TIMEOUT_MS=8000
+ACTIVEPIECES_RETRY_MAX=3
+ACTIVEPIECES_ALLOWED_HOSTNAMES=api.activepieces.com
+# Rate limit do endpoint de automação (opcional)
+AUTOMATION_RATE_LIMIT_WINDOW_MS=60000
+AUTOMATION_RATE_LIMIT_MAX=20
 ```
 
 ### Variáveis do Frontend (Atualizar após primeiro deploy)
@@ -43,7 +52,6 @@ Adicione estas variáveis e faça um novo deploy:
 ```bash
 VITE_REPORTS_API_URL=https://portal-automacao-inteligente.onrender.com/api/reports
 VITE_REPORTS_FALLBACK_URL=https://portal-automacao-inteligente.onrender.com/public/latest.json
-VITE_ACTIVEPIECES_WEBHOOK_BLOG=https://api.activepieces.com/webhook/SEU_WEBHOOK_ID
 ```
 
 **Nota**: Substitua `portal-automacao-inteligente` pela URL real que o Render atribuir ao seu app.
@@ -137,10 +145,8 @@ Após publicar um relatório, acesse:
 - Validação de path traversal
 
 ### ⚠️ Recomendações Adicionais
-1. Implementar rate limiting (ver DEPLOY.md)
-2. Configurar CORS adequadamente
-3. Adicionar DOMPurify para sanitização robusta
-4. Implementar logging estruturado
-5. Configurar backups automáticos
+1. Configurar CORS adequadamente (se expor a múltiplas origens)
+2. Adicionar DOMPurify para sanitização robusta
+3. Configurar backups automáticos
 
 Consulte o arquivo `analise_defeitos.md` para detalhes completos sobre melhorias de segurança.

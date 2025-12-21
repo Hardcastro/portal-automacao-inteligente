@@ -42,6 +42,15 @@ fontes de verdade duplicadas). Você pode ainda customizar o backend com:
 - `PAYLOAD_LIMIT`: define o limite do `POST /api/reports` (padrão `2mb`)
 - `REPORTS_DATA_DIR`: diretório onde `reports.json`/`legacy-reports.json` são escritos (padrão `./data`)
 - `REPORTS_PUBLIC_DIR`: diretório de snapshots públicos (`./public` por padrão quando `ENABLE_REPORTS_SNAPSHOT=true`)
+- `REPORTS_DIST_DIR`: diretório do build estático do front (padrão `./dist`)
+
+Automação/Activepieces (backend-only — **não usar `VITE_*`**):
+- `ACTIVEPIECES_WEBHOOK_BLOG_URL`: URL do webhook/trigger do flow.
+- `ACTIVEPIECES_SIGNING_SECRET`: segredo para assinar chamadas com HMAC (`X-Signature`).
+- `ACTIVEPIECES_TIMEOUT_MS`: timeout das chamadas (default `8000`).
+- `ACTIVEPIECES_RETRY_MAX`: tentativas com backoff (default `3`).
+- `ACTIVEPIECES_ALLOWED_HOSTNAMES`: allowlist de hostnames para evitar SSRF (default `api.activepieces.com`).
+- `AUTOMATION_RATE_LIMIT_WINDOW_MS` / `AUTOMATION_RATE_LIMIT_MAX`: limites de requisições no endpoint de automação (default 60s/20 req).
 
 ## 🚀 Como rodar
 1) Instalar dependências
@@ -82,6 +91,8 @@ src/
 └── data/reports.example.json # Exemplo local
 ```
 
+Arquitetura detalhada em [`docs/BACKEND_ARCHITECTURE.md`](./docs/BACKEND_ARCHITECTURE.md).
+
 ## 🌐 Contrato esperado da API
 Endpoint `GET /api/reports?limit=60` deve retornar `{ reports: Report[], meta }`. Cada `Report` precisa de:
 - Obrigatórios: `id` (uuid), `slug`, `title`, `excerpt`, `category`, `date`, e **`content` ou `contentUrl`**.
@@ -102,6 +113,13 @@ O front converte respostas alternativas:
 2. Se falhar, tenta `VITE_REPORTS_FALLBACK_URL` (aceita `latest.json` ou `reports.json`).
 3. O exemplo `reports.example.json` só é utilizado quando `VITE_ENABLE_REPORTS_EXAMPLE=true`.
 4. Resultados válidos são armazenados em `localStorage` (TTL) para acelerar navegação e servir o detalhe (`/blog/:slug`).
+
+## 🤖 Automations (Activepieces)
+- Endpoint orquestrador: `POST /api/automation/blog` (rate limit 20/min por IP).
+- Payload esperado: `{ reports: [...] }` (array opcional). O backend gera `correlationId`, assina o corpo e chama o webhook do Activepieces com `X-Signature`, `X-Timestamp`, `X-Nonce`, `X-Request-Id`.
+- Resposta: `202 { ok: true, correlationId, requestId }` ou `503` se a integração não estiver configurada.
+- O frontend **não** chama Activepieces diretamente; use o endpoint acima.
+- Activepieces publica relatórios de volta via `POST /api/reports` com Bearer `REPORTS_SECRET_TOKEN`.
 
 ## ✅ Boas práticas
 - Mantenha as URLs de API e fallback acessíveis pela mesma origem do front para evitar CORS em desenvolvimento.

@@ -37,13 +37,14 @@ const runHandler = async (handler, args, next) => {
 
 const express = () => {
   const stack = []
-  const composeHandlers = (handlers = []) => (req, res, next) => {
-    const chain = handlers.flat().filter(Boolean)
-    let idx = 0
+    const composeHandlers = (handlers = []) => (req, res, next) => {
+      const chain = handlers.flat().filter(Boolean)
+      let idx = 0
 
-    const step = (err) => {
-      const handler = chain[idx]
-      idx += 1
+      const step = (err) => {
+        if (res.writableEnded) return
+        const handler = chain[idx]
+        idx += 1
 
       if (!handler) return next(err)
 
@@ -103,7 +104,7 @@ const express = () => {
           res.statusCode = res.statusCode || 500
           res.end('Internal Server Error')
         } else if (!res.writableEnded) {
-          res.statusCode = res.statusCode || 404
+          res.statusCode = res.statusCode === 200 ? 404 : (res.statusCode || 404)
           res.end('Not Found')
         }
         return
