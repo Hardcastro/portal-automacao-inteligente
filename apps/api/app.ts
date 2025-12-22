@@ -6,27 +6,28 @@ import reportsRouter from './routes/reports.js'
 import automationRouter from './routes/automation.js'
 import webhookRouter from './routes/webhooks.js'
 import healthRouter from './routes/health.js'
-import { prisma } from '../shared/prisma.js'
+import { getPrisma } from '../shared/prismaClient.js'
 import { getRedis } from '../shared/redis.js'
+import type { NextFunction, RequestWithContext, ResponseLike } from '../shared/types.js'
 
 const app = express()
 
-const attachClients = (req, _res, next) => {
-  req.prisma = prisma
+const attachClients = (req: RequestWithContext, _res: ResponseLike, next: NextFunction) => {
+  req.prisma = getPrisma()
   req.redis = getRedis()
   next()
 }
 
 app.use(contextMiddleware)
 const jsonParser = express.json({ limit: '1mb' })
-app.use((req, res, next) => {
-  if (req.url.startsWith('/v1/webhooks/activepieces/callback')) return next()
+app.use((req: RequestWithContext, res: ResponseLike, next: NextFunction) => {
+  if (req.url && req.url.startsWith('/v1/webhooks/activepieces/callback')) return next()
   return jsonParser(req, res, next)
 })
 app.use(attachClients)
 
 const tenantRouter = express.Router({ mergeParams: true })
-tenantRouter.use(authMiddleware(prisma))
+tenantRouter.use(authMiddleware(getPrisma()))
 tenantRouter.use('/reports', reportsRouter)
 tenantRouter.use('/automation-runs', automationRouter)
 

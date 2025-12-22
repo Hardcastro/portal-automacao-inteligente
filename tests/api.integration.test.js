@@ -1,12 +1,13 @@
 import assert from 'node:assert'
 import { after, before, beforeEach, test } from 'node:test'
 import crypto from 'node:crypto'
-import app from '../apps/api/app.js'
-import { config } from '../apps/shared/env.js'
-import { prisma, resetPrisma } from '../apps/shared/prisma.js'
-import { resetRedis } from '../apps/shared/redis.js'
-import { resetQueues } from '../apps/shared/queues.js'
+import app from '../apps/api/app.ts'
+import { config } from '../apps/shared/env.ts'
+import { getPrisma, resetPrisma } from '../apps/shared/prismaClient.ts'
+import { resetRedis } from '../apps/shared/redis.ts'
+import { resetQueues } from '../apps/shared/queues.ts'
 
+const prisma = getPrisma()
 const hashApiKey = (raw) => crypto.createHash('sha256').update(`${config.API_KEY_PEPPER}:${raw}`).digest('hex')
 
 const seedTenant = async (scopes) => {
@@ -68,14 +69,14 @@ test('retorna 403 quando falta escopo', async () => {
       'Content-Type': 'application/json',
       'Idempotency-Key': 'k1',
     },
-    body: JSON.stringify({ title: 'A', summary: 'B', content: {}, publishedAt: new Date().toISOString() }),
+    body: JSON.stringify({ title: 'A', summary: 'B', body: {}, publishedAt: new Date().toISOString() }),
   })
   assert.equal(res.status, 403)
 })
 
-test('idempotência: mesma chave e payload retorna mesma resposta', async () => {
+test('idempotency: mesma chave e payload retorna mesma resposta', async () => {
   const { apiKey, tenant } = await seedTenant()
-  const payload = { title: 'Relatório', summary: 'Resumo', content: { body: 'x' }, publishedAt: new Date().toISOString() }
+  const payload = { title: 'Relatorio', summary: 'Resumo', body: { body: 'x' }, publishedAt: new Date().toISOString() }
   const res1 = await fetch(`${baseUrl}/v1/tenants/${tenant.id}/reports`, {
     method: 'POST',
     headers: {
@@ -106,14 +107,14 @@ test('idempotência: mesma chave e payload retorna mesma resposta', async () => 
   assert.equal(reports.length, 1)
 })
 
-test('idempotência: payload diferente retorna 409', async () => {
+test('idempotency: payload diferente retorna 409', async () => {
   const { apiKey, tenant } = await seedTenant()
   const baseHeaders = {
     Authorization: `Bearer ${apiKey}`,
     'Content-Type': 'application/json',
     'Idempotency-Key': 'dup2',
   }
-  const payload = { title: 'R1', summary: 'S1', content: {}, publishedAt: new Date().toISOString() }
+  const payload = { title: 'R1', summary: 'S1', body: {}, publishedAt: new Date().toISOString() }
   await fetch(`${baseUrl}/v1/tenants/${tenant.id}/reports`, {
     method: 'POST',
     headers: baseHeaders,
@@ -127,9 +128,9 @@ test('idempotência: payload diferente retorna 409', async () => {
   assert.equal(res.status, 409)
 })
 
-test('POST cria e GET lista relatórios', async () => {
+test('POST cria e GET lista relatorios', async () => {
   const { apiKey, tenant } = await seedTenant()
-  const payload = { title: 'R', summary: 'S', content: {}, publishedAt: new Date().toISOString() }
+  const payload = { title: 'R', summary: 'S', body: {}, publishedAt: new Date().toISOString() }
   const createRes = await fetch(`${baseUrl}/v1/tenants/${tenant.id}/reports`, {
     method: 'POST',
     headers: {
@@ -150,7 +151,7 @@ test('POST cria e GET lista relatórios', async () => {
   assert.equal(body.reports.length, 1)
 })
 
-test('callback válido atualiza automation run e replay retorna 409', async () => {
+test('callback valido atualiza automation run e replay retorna 409', async () => {
   const { apiKey, tenant } = await seedTenant()
   const runRes = await fetch(`${baseUrl}/v1/tenants/${tenant.id}/automation-runs`, {
     method: 'POST',
@@ -167,7 +168,10 @@ test('callback válido atualiza automation run e replay retorna 409', async () =
   const rawBody = JSON.stringify({ correlationId: runBody.correlationId, status: 'succeeded', output: { ok: true } })
   const timestamp = Math.floor(Date.now() / 1000).toString()
   const nonce = 'nonce-1'
-  const signature = crypto.createHmac('sha256', config.ACTIVEPIECES_CALLBACK_SIGNING_SECRET || 'change-me').update(`${timestamp}.${nonce}.${rawBody}`).digest('hex')
+  const signature = crypto
+    .createHmac('sha256', config.ACTIVEPIECES_CALLBACK_SIGNING_SECRET || 'change-me')
+    .update(`${timestamp}.${nonce}.${rawBody}`)
+    .digest('hex')
 
   const callbackRes = await fetch(`${baseUrl}/v1/webhooks/activepieces/callback`, {
     method: 'POST',

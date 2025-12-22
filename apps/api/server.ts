@@ -1,8 +1,8 @@
 import app from './app.js'
 import { config } from '../shared/env.js'
 import { logger } from '../shared/logger.js'
-import { prisma } from '../shared/prisma.js'
-import { getRedis } from '../shared/redis.js'
+import { closePrisma, getPrisma } from '../shared/prismaClient.js'
+import { closeRedis, getRedis } from '../shared/redis.js'
 
 const port = config.PORT || 3000
 
@@ -11,13 +11,15 @@ const server = app.listen(port, () => {
 })
 
 const shutdown = async () => {
-  logger.info('Encerrando servidor...')
+  logger.info({}, 'Encerrando servidor...')
   server.close()
-  await prisma.$disconnect()
-  const redis = getRedis()
-  if (redis?.disconnect) await redis.disconnect()
+  await closePrisma()
+  await closeRedis()
   process.exit(0)
 }
+
+getPrisma()
+getRedis()
 
 process.on('SIGTERM', shutdown)
 process.on('SIGINT', shutdown)

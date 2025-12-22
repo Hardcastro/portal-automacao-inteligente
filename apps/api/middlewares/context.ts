@@ -1,13 +1,14 @@
 import { randomUUID } from 'crypto'
 import { createLogger } from '../../shared/logger.js'
+import type { NextFunction, RequestWithContext, ResponseLike } from '../../shared/types.js'
 
 const logger = createLogger({ module: 'http' })
 
-export const contextMiddleware = (req, res, next) => {
-  const requestId = req.get('x-request-id') || randomUUID()
-  const correlationId = req.get('x-correlation-id')
+export const contextMiddleware = (req: RequestWithContext, res: ResponseLike, next: NextFunction) => {
+  const requestId = req.get?.('x-request-id') || randomUUID()
+  const correlationId = req.get?.('x-correlation-id')
 
-  req.context = {
+  req.ctx = {
     requestId,
     correlationId: correlationId || null,
     startTime: process.hrtime.bigint(),
@@ -16,9 +17,9 @@ export const contextMiddleware = (req, res, next) => {
   res.setHeader('X-Request-Id', requestId)
   if (correlationId) res.setHeader('X-Correlation-Id', correlationId)
 
-  res.on('finish', () => {
+  res.on?.('finish', () => {
     const end = process.hrtime.bigint()
-    const latencyMs = Number(end - req.context.startTime) / 1e6
+    const latencyMs = Number(end - req.ctx.startTime) / 1e6
     logger.info(
       {
         requestId,
@@ -26,7 +27,7 @@ export const contextMiddleware = (req, res, next) => {
         method: req.method,
         url: req.originalUrl,
         status: res.statusCode,
-        tenantId: req.context.tenantId,
+        tenantId: req.ctx.tenantId,
         latencyMs: Number(latencyMs.toFixed(3)),
       },
       'request completed',
