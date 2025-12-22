@@ -82,7 +82,7 @@ const createRedisClient = (): RedisClient => {
     return new MemoryRedis()
   }
 
-  const client = new IORedis(config.REDIS_URL)
+  const client = new IORedis(config.REDIS_URL, { maxRetriesPerRequest: null })
   client.on('connect', () => logger.info({}, 'Redis conectado'))
   client.on('error', (err: unknown) => logger.error({ err }, 'Falha no Redis'))
   return client
