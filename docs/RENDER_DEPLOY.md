@@ -6,7 +6,7 @@
 - Redis (Managed): filas BullMQ, rate limit e anti-replay de webhooks.
 
 ## Comandos de build e start (producao)
-- Build: `npm ci && npm run prisma:generate && npm run build && npm run prisma:migrate:deploy`
+- Build: `npm ci && npm run prisma:generate && npm run build && npm run build:frontend && npm run prisma:migrate:deploy`
 - API start: `npm run start:api`
 
 Em producao, nunca rodar `tsx`; sempre usar `dist/` + `node`.
@@ -28,3 +28,6 @@ Em producao, nunca rodar `tsx`; sempre usar `dist/` + `node`.
 - O Render free nao permite criar Background Worker separado. Os workers BullMQ rodam no mesmo processo da API.
 - O Web Service dorme apos inatividade; use um ping externo (ex.: UptimeRobot) para manter o servico ativo.
 - Redis gratuito do Render nao e persistente; se quiser mais estabilidade, use um Redis externo gratuito (ex.: Upstash).
+
+## Frontend no mesmo servico
+- O build do Vite gera arquivos em `dist/client`. O servidor da API entrega esses arquivos na raiz `/`.
