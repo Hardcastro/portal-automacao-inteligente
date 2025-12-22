@@ -1,30 +1,46 @@
 import { randomUUID } from 'node:crypto'
 
+// In-memory Prisma-like stub used when USE_INMEMORY_STUBS is enabled.
+
 export const ApiKeyStatus = { ACTIVE: 'ACTIVE', DISABLED: 'DISABLED', REVOKED: 'REVOKED' }
 export const OutboxEventStatus = { PENDING: 'PENDING', PROCESSING: 'PROCESSING', DELIVERED: 'DELIVERED', FAILED: 'FAILED', DEAD_LETTER: 'DEAD_LETTER' }
 export const AutomationRunStatus = { QUEUED: 'QUEUED', RUNNING: 'RUNNING', SUCCEEDED: 'SUCCEEDED', FAILED: 'FAILED', DEAD_LETTER: 'DEAD_LETTER' }
 export const IdempotencyKeyStatus = { PENDING: 'PENDING', COMPLETED: 'COMPLETED', CONFLICT: 'CONFLICT', EXPIRED: 'EXPIRED' }
 
-const clone = (obj) => JSON.parse(JSON.stringify(obj))
+type AnyRecord = Record<string, any>
+
+type MemoryDb = {
+  tenants: AnyRecord[]
+  apiKeys: AnyRecord[]
+  reports: AnyRecord[]
+  automationRuns: AnyRecord[]
+  outboxEvents: AnyRecord[]
+  idempotencyKeys: AnyRecord[]
+}
+
+const clone = <T>(obj: T): T => JSON.parse(JSON.stringify(obj))
 
 class BaseModel {
-  constructor(db, collection) {
+  db: MemoryDb
+  collection: keyof MemoryDb
+
+  constructor(db: MemoryDb, collection: keyof MemoryDb) {
     this.db = db
     this.collection = collection
   }
 
-  _find(filterFn) {
+  _find(filterFn: (item: AnyRecord) => boolean) {
     return this.db[this.collection].find(filterFn)
   }
 }
 
 class TenantModel extends BaseModel {
-  constructor(db) {
+  constructor(db: MemoryDb) {
     super(db, 'tenants')
   }
 
-  async upsert({ where, update, create }) {
-    let existing = this._find((t) => t.slug === where.slug)
+  async upsert({ where, update, create }: { where: AnyRecord; update: AnyRecord; create: AnyRecord }) {
+    let existing = this._find((t: AnyRecord) => t.slug === where.slug)
     if (existing) {
       Object.assign(existing, update, { updatedAt: new Date().toISOString() })
     } else {
@@ -36,24 +52,26 @@ class TenantModel extends BaseModel {
 }
 
 class ApiKeyModel extends BaseModel {
-  constructor(db) {
+  constructor(db: MemoryDb) {
     super(db, 'apiKeys')
   }
 
-  async findFirst({ where }) {
+  async findFirst({ where }: { where: AnyRecord }) {
     const key = this._find(
-      (k) =>
+      (k: AnyRecord) =>
         (!where.keyHash || k.keyHash === where.keyHash) &&
         (!where.status || k.status === where.status) &&
         (!where.tenantId || k.tenantId === where.tenantId),
     )
     if (!key) return null
-    const tenant = this.db.tenants.find((t) => t.id === key.tenantId)
+    const tenant = this.db.tenants.find((t: AnyRecord) => t.id === key.tenantId)
     return clone({ ...key, tenant })
   }
 
-  async upsert({ where, update, create }) {
-    let existing = this._find((k) => k.tenantId === where.tenantId_name.tenantId && k.name === where.tenantId_name.name)
+  async upsert({ where, update, create }: { where: AnyRecord; update: AnyRecord; create: AnyRecord }) {
+    let existing = this._find(
+      (k: AnyRecord) => k.tenantId === where.tenantId_name.tenantId && k.name === where.tenantId_name.name,
+    )
     if (existing) {
       Object.assign(existing, update, { updatedAt: new Date().toISOString() })
     } else {
@@ -68,8 +86,8 @@ class ApiKeyModel extends BaseModel {
     return clone(existing)
   }
 
-  async update({ where, data }) {
-    const key = this._find((k) => k.id === where.id)
+  async update({ where, data }: { where: AnyRecord; data: AnyRecord }) {
+    const key = this._find((k: AnyRecord) => k.id === where.id)
     if (!key) throw new Error('ApiKey not found')
     Object.assign(key, data, { updatedAt: new Date().toISOString() })
     return clone(key)
@@ -77,12 +95,14 @@ class ApiKeyModel extends BaseModel {
 }
 
 class ReportModel extends BaseModel {
-  constructor(db) {
+  constructor(db: MemoryDb) {
     super(db, 'reports')
   }
 
-  async upsert({ where, update, create }) {
-    let report = this._find((r) => r.tenantId === where.tenantId_slug.tenantId && r.slug === where.tenantId_slug.slug)
+  async upsert({ where, update, create }: { where: AnyRecord; update: AnyRecord; create: AnyRecord }) {
+    let report = this._find(
+      (r: AnyRecord) => r.tenantId === where.tenantId_slug.tenantId && r.slug === where.tenantId_slug.slug,
+    )
     let isNew = false
     if (report) {
       Object.assign(report, update, { updatedAt: new Date().toISOString() })
@@ -94,14 +114,28 @@ class ReportModel extends BaseModel {
     return clone({ ...report, __isNew: isNew })
   }
 
-  async findMany({ where, orderBy, take, cursor, skip }) {
-    let list = this.db.reports.filter((r) => r.tenantId === where.tenantId)
+  async findMany({
+    where,
+    orderBy,
+    take,
+    cursor,
+    skip,
+  }: {
+    where: AnyRecord
+    orderBy?: AnyRecord[]
+    take?: number
+    cursor?: AnyRecord
+    skip?: number
+  }) {
+    let list = this.db.reports.filter(
+      (r: AnyRecord) => r.tenantId === where.tenantId && (!where.slug || r.slug === where.slug),
+    )
     if (cursor?.id) {
-      const idx = list.findIndex((r) => r.id === cursor.id)
+      const idx = list.findIndex((r: AnyRecord) => r.id === cursor.id)
       if (idx >= 0 && skip) list = list.slice(idx + skip)
     }
     if (orderBy?.length) {
-      list = list.sort((a, b) => {
+      list = list.sort((a: AnyRecord, b: AnyRecord) => {
         for (const entry of orderBy) {
           const [field, direction] = Object.entries(entry)[0]
           const aVal = a[field] || a.createdAt
@@ -116,26 +150,28 @@ class ReportModel extends BaseModel {
     return clone(list)
   }
 
-  async findFirst({ where, orderBy }) {
-    const [first] = await this.findMany({ where, orderBy, take: 1 })
+  async findFirst({ where, orderBy }: { where: AnyRecord; orderBy?: AnyRecord[] }) {
+    const payload: { where: AnyRecord; orderBy?: AnyRecord[]; take: number } = { where, take: 1 }
+    if (orderBy) payload.orderBy = orderBy
+    const [first] = await this.findMany(payload)
     return first || null
   }
 }
 
 class AutomationRunModel extends BaseModel {
-  constructor(db) {
+  constructor(db: MemoryDb) {
     super(db, 'automationRuns')
   }
 
-  async create({ data }) {
+  async create({ data }: { data: AnyRecord }) {
     const run = { id: randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...data }
     this.db.automationRuns.push(run)
     return clone(run)
   }
 
-  async findFirst({ where, select }) {
+  async findFirst({ where, select }: { where: AnyRecord; select?: AnyRecord }) {
     const run = this._find(
-      (r) =>
+      (r: AnyRecord) =>
         (!where.id || r.id === where.id) &&
         (!where.tenantId || r.tenantId === where.tenantId) &&
         (!where.correlationId || r.correlationId === where.correlationId) &&
@@ -143,8 +179,8 @@ class AutomationRunModel extends BaseModel {
     )
     if (!run) return null
     if (select) {
-      const result = {}
-      Object.keys(select).forEach((key) => {
+      const result: AnyRecord = {}
+      Object.keys(select).forEach((key: string) => {
         if (select[key]) result[key] = run[key]
       })
       return clone(result)
@@ -152,8 +188,8 @@ class AutomationRunModel extends BaseModel {
     return clone(run)
   }
 
-  async update({ where, data }) {
-    const run = this._find((r) => r.id === where.id)
+  async update({ where, data }: { where: AnyRecord; data: AnyRecord }) {
+    const run = this._find((r: AnyRecord) => r.id === where.id)
     if (!run) throw new Error('AutomationRun not found')
     Object.assign(run, data, { updatedAt: new Date().toISOString() })
     return clone(run)
@@ -161,11 +197,11 @@ class AutomationRunModel extends BaseModel {
 }
 
 class OutboxEventModel extends BaseModel {
-  constructor(db) {
+  constructor(db: MemoryDb) {
     super(db, 'outboxEvents')
   }
 
-  async create({ data }) {
+  async create({ data }: { data: AnyRecord }) {
     const event = {
       id: randomUUID(),
       createdAt: new Date().toISOString(),
@@ -177,34 +213,44 @@ class OutboxEventModel extends BaseModel {
     return clone(event)
   }
 
-  async findMany({ where, orderBy, take }) {
+  async findMany({ where, orderBy, take }: { where: AnyRecord; orderBy?: AnyRecord; take?: number }) {
     let list = this.db.outboxEvents.filter(
-      (ev) =>
+      (ev: AnyRecord) =>
         (!where.status || ev.status === where.status) &&
         (!where.OR ||
-          where.OR.some((cond) => {
+          where.OR.some((cond: AnyRecord) => {
             if (cond.nextRetryAt === null) return ev.nextRetryAt === null
             if (cond.nextRetryAt?.lte) return !ev.nextRetryAt || new Date(ev.nextRetryAt) <= new Date(cond.nextRetryAt.lte)
             return false
           })),
     )
     if (orderBy) {
-      list = list.sort((a, b) => {
+      list = list.sort((a: AnyRecord, b: AnyRecord) => {
         const field = orderBy.createdAt ? 'createdAt' : Object.keys(orderBy)[0]
-        return orderBy[field] === 'asc' ? new Date(a[field]) - new Date(b[field]) : new Date(b[field]) - new Date(a[field])
+        const aTime = new Date(String(a[field] ?? '')).getTime()
+        const bTime = new Date(String(b[field] ?? '')).getTime()
+        return orderBy[field] === 'asc' ? aTime - bTime : bTime - aTime
       })
     }
     if (take) list = list.slice(0, take)
     return clone(list)
   }
 
-  async updateMany({ where, data }) {
+  async findFirst({ where }: { where: AnyRecord }) {
+    const event = this._find(
+      (ev: AnyRecord) =>
+        (!where.id || ev.id === where.id) && (!where.tenantId || ev.tenantId === where.tenantId) && (!where.status || ev.status === where.status),
+    )
+    return event ? clone(event) : null
+  }
+
+  async updateMany({ where, data }: { where: AnyRecord; data: AnyRecord }) {
     let count = 0
-    this.db.outboxEvents = this.db.outboxEvents.map((ev) => {
+    this.db.outboxEvents = this.db.outboxEvents.map((ev: AnyRecord) => {
       if (ev.id === where.id && (!where.status || ev.status === where.status)) {
         count += 1
         const increment = typeof data.attempts === 'object' && typeof data.attempts.increment === 'number' ? data.attempts.increment : 0
-        const merged = { ...ev, ...data, updatedAt: new Date().toISOString() }
+        const merged: AnyRecord = { ...ev, ...data, updatedAt: new Date().toISOString() }
         merged.attempts = (ev.attempts || 0) + increment
         return merged
       }
@@ -213,8 +259,8 @@ class OutboxEventModel extends BaseModel {
     return { count }
   }
 
-  async update({ where, data }) {
-    const event = this._find((ev) => ev.id === where.id)
+  async update({ where, data }: { where: AnyRecord; data: AnyRecord }) {
+    const event = this._find((ev: AnyRecord) => ev.id === where.id)
     if (!event) throw new Error('OutboxEvent not found')
     Object.assign(event, data, { updatedAt: new Date().toISOString() })
     return clone(event)
@@ -222,16 +268,16 @@ class OutboxEventModel extends BaseModel {
 }
 
 class IdempotencyKeyModel extends BaseModel {
-  constructor(db) {
+  constructor(db: MemoryDb) {
     super(db, 'idempotencyKeys')
   }
 
-  async create({ data }) {
+  async create({ data }: { data: AnyRecord }) {
     const exists = this._find(
-      (k) => k.tenantId === data.tenantId && k.key === data.key && k.method === data.method && k.path === data.path,
+      (k: AnyRecord) => k.tenantId === data.tenantId && k.key === data.key && k.method === data.method && k.path === data.path,
     )
     if (exists) {
-      const error = new Error('Unique constraint')
+      const error = new Error('Unique constraint') as Error & { code?: string }
       error.code = 'P2002'
       throw error
     }
@@ -240,9 +286,9 @@ class IdempotencyKeyModel extends BaseModel {
     return clone(record)
   }
 
-  async findFirst({ where }) {
+  async findFirst({ where }: { where: AnyRecord }) {
     const record = this._find(
-      (r) =>
+      (r: AnyRecord) =>
         (!where.tenantId || r.tenantId === where.tenantId) &&
         (!where.key || r.key === where.key) &&
         (!where.method || r.method === where.method) &&
@@ -251,8 +297,8 @@ class IdempotencyKeyModel extends BaseModel {
     return record ? clone(record) : null
   }
 
-  async update({ where, data }) {
-    const record = this._find((r) => r.id === where.id)
+  async update({ where, data }: { where: AnyRecord; data: AnyRecord }) {
+    const record = this._find((r: AnyRecord) => r.id === where.id)
     if (!record) throw new Error('IdempotencyKey not found')
     Object.assign(record, data, { updatedAt: new Date().toISOString() })
     return clone(record)
@@ -260,6 +306,19 @@ class IdempotencyKeyModel extends BaseModel {
 }
 
 export class PrismaClient {
+  tenants: AnyRecord[]
+  apiKeys: AnyRecord[]
+  reports: AnyRecord[]
+  automationRuns: AnyRecord[]
+  outboxEvents: AnyRecord[]
+  idempotencyKeys: AnyRecord[]
+  tenant: TenantModel
+  apiKey: ApiKeyModel
+  report: ReportModel
+  automationRun: AutomationRunModel
+  outboxEvent: OutboxEventModel
+  idempotencyKey: IdempotencyKeyModel
+
   constructor() {
     this.tenants = []
     this.apiKeys = []
@@ -276,19 +335,19 @@ export class PrismaClient {
     this.idempotencyKey = new IdempotencyKeyModel(this)
   }
 
-  async $transaction(fn) {
+  async $transaction<T>(fn: (tx: PrismaClient) => Promise<T> | T): Promise<T> {
     return fn(this)
   }
 
-  async $queryRaw() {
+  async $queryRaw(): Promise<number> {
     return 1
   }
 
-  async $disconnect() {
-    return true
+  async $disconnect(): Promise<void> {
+    return
   }
 
-  reset() {
+  reset(): void {
     this.tenants = []
     this.apiKeys = []
     this.reports = []
