@@ -35,6 +35,10 @@ app.use('/v1/tenants/:tenantId', tenantRouter)
 app.use('/v1/webhooks', attachClients, webhookRouter)
 app.use('/health', attachClients, healthRouter)
 
+app.get('/', (_req: RequestWithContext, res: ResponseLike) => {
+  res.json({ status: 'ok' })
+})
+
 app.use(notFoundHandler)
 app.use(errorHandler)
 
