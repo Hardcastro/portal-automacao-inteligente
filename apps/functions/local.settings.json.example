@@ -1,0 +1,18 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "COSMOS_ENDPOINT": "https://<cosmos-account>.documents.azure.com:443/",
+    "COSMOS_DATABASE": "portal",
+    "COSMOS_CONTAINER_POSTS": "posts",
+    "COSMOS_CONTAINER_RUNS": "runs",
+    "COSMOS_CONTAINER_CONFIGS": "configs",
+    "STORAGE_ACCOUNT_NAME": "<storage-account>",
+    "BLOG_CONTENT_CONTAINER": "blog-content",
+    "BLOG_ASSETS_CONTAINER": "blog-assets",
+    "REPORTS_QUEUE": "report-jobs",
+    "REPORTS_DLQ": "report-dlq",
+    "TENANT_ID": "public"
+  }
+}

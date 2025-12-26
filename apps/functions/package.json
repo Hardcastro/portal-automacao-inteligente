@@ -1,0 +1,18 @@
+{
+  "name": "portal-blog-functions",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/functions/index.js",
+  "scripts": {
+    "start": "func start --javascript",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@azure/cosmos": "^4.2.0",
+    "@azure/functions": "^4.6.0",
+    "@azure/identity": "^4.2.0",
+    "@azure/storage-blob": "^12.17.0",
+    "@azure/storage-queue": "^12.16.0"
+  }
+}

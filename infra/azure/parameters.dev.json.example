@@ -1,0 +1,13 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "env": { "value": "dev" },
+    "location": { "value": "brazilsouth" },
+    "storageAccountName": { "value": "stportaldev12345" },
+    "cosmosAccountName": { "value": "cosmosportaldev12345" },
+    "functionAppName": { "value": "func-portal-dev-12345" },
+    "appInsightsName": { "value": "appi-portal-dev-12345" },
+    "keyVaultName": { "value": "kv-portal-dev-12345" }
+  }
+}

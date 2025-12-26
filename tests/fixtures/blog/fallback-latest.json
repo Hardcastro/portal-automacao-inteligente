@@ -1,0 +1,22 @@
+{
+  "latest": {
+    "id": "550e8400-e29b-41d4-a716-446655440002",
+    "slug": "tendencias-tecnologicas-2024",
+    "title": "Tendencias Tecnologicas 2024",
+    "excerpt": "Principais tendencias tecnologicas para o proximo ano.",
+    "category": "tendencias",
+    "tags": ["tecnologia", "ia", "inovacao"],
+    "date": "2024-01-13T14:20:00Z",
+    "readTime": 6,
+    "author": "Motor Inteligente",
+    "content": {
+      "type": "markdown",
+      "body": "## Introducao\n\nTexto de exemplo."
+    },
+    "contentUrl": null,
+    "thumbnail": null
+  },
+  "meta": {
+    "total": 1
+  }
+}
