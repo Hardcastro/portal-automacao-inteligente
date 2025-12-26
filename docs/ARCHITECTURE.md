@@ -1,68 +1,58 @@
-# Arquitetura alvo (MVP robusto)
+# Arquitetura atual e rota de migracao
 
-## Visão geral
-O objetivo é reconstruir o backend do aetherflow.digital com um Web API e um Worker Node.js (ESM) conectados a Postgres + Prisma e Redis (BullMQ), suportando multi-tenant, idempotência, filas/DLQ, webhooks assinados e observabilidade estruturada.
+## Visao geral
+O repositorio hoje tem dois trilhos:
 
-- **Serviços (Render):** Web API (Express) + Worker (BullMQ) + Postgres (managed) + Redis (managed).
-- **Linguagem/stack:** Node.js ESM, Express, Prisma, BullMQ, Zod, Pino JSON.
-- **Multi-tenant:** `tenantId` sempre vindo do path `/v1/tenants/:tenantId`, com enforcement via API Key.
-- **Contratos v1:** reports (POST batch, GET list/latest), automation runs (POST, GET by id), webhooks callbacks, health/ready.
+1) **Backend atual (Node + Express)**: `apps/api` + `apps/worker` em Node.js ESM, com Prisma/Postgres, Redis/BullMQ, multi-tenant, idempotencia, filas/DLQ, webhook assinado e observabilidade.
+2) **Trilho Azure (migracao)**: `apps/functions` + `infra/azure` para Azure Functions + Cosmos DB + Blob Storage + Storage Queue + Application Insights + Key Vault.
 
-## Auditoria do repositório (estado atual)
-- **Front-end SPA** em React/Vite (`npm run dev|build|start`) servindo dados de `/api/reports` ou fallback estático (`src/api/reportsClient.js`).
-- **Não há backend ativo**: nenhum entrypoint Node/Express, filas BullMQ ou camada de idempotência presentes.
-- **Dados**: somente JSON estáticos em `public/`/`src/data/`. Nenhuma integração com Postgres/Redis.
-- **Autenticação/autorização**: inexistente. Chaves e tokens em `.env` eram apenas placeholders legados.
-- **Testes**: `npm test` cobre apenas validação/normalização de relatórios no front (`tests/validateReport.test.js`).
+Objetivo: manter o contrato do Blog imutavel enquanto migramos gradualmente para Azure.
 
-## Layout pretendido do código
+## Estado atual (implementado)
+- **API v1** em `apps/api` com entrypoint `apps/api/server.ts` e rotas de reports, automations, webhooks e health.
+- **Workers** em `apps/worker` para outbox e automations usando BullMQ.
+- **Multi-tenant** via `/v1/tenants/:tenantId` com API key e escopos.
+- **Idempotencia** para POST criticos e rate limiting via Redis.
+- **Observabilidade**: `requestId`/`correlationId` e logs JSON.
+- **Fallback dev/test**: Prisma/Redis/filas in-memory quando `USE_INMEMORY_STUBS=true`.
+- **Front-end** React/Vite consumindo `REPORTS_API_URL` (default `/api/reports`) com fallback estatico (`/public/latest.json`).
+
+## Rotas implementadas (API v1)
+- `GET /health/healthz`
+- `GET /health/readyz`
+- `POST /v1/tenants/:tenantId/reports`
+- `GET /v1/tenants/:tenantId/reports?limit&cursor`
+- `GET /v1/tenants/:tenantId/reports/latest`
+- `POST /v1/tenants/:tenantId/automation-runs`
+- `GET /v1/tenants/:tenantId/automation-runs/:runId`
+- `POST /v1/webhooks/activepieces/callback`
+
+## Filas e workers
+- **Filas**: `outbox`, `automation` + DLQ (`outbox:dlq`, `automation:dlq`).
+- **Workers**: `outboxProcessor` e `automationProcessor`.
+- **Dev/test**: filas em memoria com retries e backoff basicos.
+
+## Layout do codigo (monorepo)
 ```
-/            # repositório raiz (monorepo simples)
+/            # repositorio raiz
 ├─ apps/
-│  ├─ api/      # Web API Express (ESM, Zod, Pino)
-│  └─ worker/   # Workers BullMQ (outbox + automations)
-├─ prisma/      # schema.prisma, migrations/, seed.js
-└─ docs/        # ARCHITECTURE, RENDER_DEPLOY, openapi.yaml (quando pronto)
+│  ├─ api/        # Web API Express (ESM, Zod, Pino)
+│  ├─ worker/     # Workers BullMQ (outbox + automations)
+│  └─ functions/  # Azure Functions (blog read + scheduler/worker)
+├─ prisma/        # schema.prisma, migrations/, seed.js
+├─ docs/          # arquitetura, contratos, runbooks, openapi (quando pronto)
+└─ infra/         # Bicep para Azure
 ```
 
-Componentes transversais planejados:
-- **Config**: carregamento de env (DATABASE_URL, REDIS_URL, API_KEY_PEPPER, ACTIVEPIECES_* etc.) e validação.
-- **Logger**: Pino JSON com `requestId`/`correlationId` e `tenantId`.
-- **Erros**: envelope único de erro + middlewares para 4xx/5xx.
-- **Idempotência**: middleware para POST `/reports` e `/automation-runs` com persistência em `idempotency_keys`.
-- **Segurança**: API Key Bearer (hash+pepper) com escopos mínimos; webhook HMAC + anti-replay (Redis nonce + janela de tempo).
+## Trilho Azure (migracao)
+- **Functions HTTP (blog read)**: `GET /blog/posts` e `GET /blog/posts/{slug}`.
+- **Queues + Timer**: `report-jobs` + worker para gerar posts; timer diario para enfileirar jobs.
+- **Cosmos + Blob**: metadados em Cosmos, conteudo em Blob, `latest.json` materializado.
+- **Infra**: Bicep em `infra/azure` com Storage, Cosmos, Functions, Insights e Key Vault.
 
-## Plano de execução (incremental)
-1) **Auditoria** (feito aqui): mapear entrypoints e lacunas. Formalizar plano em `docs/ARCHITECTURE.md`.
-2) **Infra básica**: adicionar Prisma + migrations iniciais + seed (tenant + api_key). Variáveis `DATABASE_URL`/`REDIS_URL` documentadas.
-3) **Auth + tenants**: middleware Bearer, validação de escopos, envelope de erros consistente, requestId/correlationId nos logs.
-4) **Idempotência**: camada DB + middleware para POST críticos; detecção de payload divergente (409) e replay seguro.
-5) **Reports**: rotas batch/upsert + outbox em transação; paginação e `latest`.
-6) **Outbox worker**: BullMQ consumindo `outbox_events`, retries 429/5xx com backoff e DLQ.
-7) **Automation runs**: API + fila; worker aciona ActivePieces, persiste provider_run_id, retries controlados.
-8) **Webhook callback**: verificação de assinatura HMAC, anti-replay via Redis, atualização de `automation_runs`.
-9) **Rate limit**: Redis por tenant/rota, resposta 429 com `Retry-After`.
-10) **OpenAPI + docs**: `docs/openapi.yaml`, `docs/RENDER_DEPLOY.md` completo, runbook e testes de integração.
-
-## Modelo de dados mínimo (Prisma/Postgres)
-- **tenants**: base multi-tenant (id UUID, slug único, name, timestamps).
-- **api_keys**: `tenant_id`, `name`, `scopes[]`, `key_hash`, `status`, `last_used_at`.
-- **reports**: `tenant_id`, `slug` (único por tenant), `title`, `summary`, `content` JSON, `published_at`, timestamps.
-- **automation_runs**: `tenant_id`, `correlation_id` único, `status`, `input`/`output` JSON, `provider`, `provider_run_id`, timestamps.
-- **outbox_events**: `tenant_id`, `type`, `payload` JSON, `status`, `attempts`, `next_retry_at`, `last_error`, timestamps.
-- **idempotency_keys**: `tenant_id`, `key`, `method`, `path`, `request_hash`, `response_json`, `status_code`, `expires_at`, timestamps.
-
-## Próximos passos imediatos
-- Finalizar a camada Prisma com migrations + seed controlado.
-- Criar base de env (`.env.example`) com DATABASE_URL/REDIS_URL/API_KEY_PEPPER e VITE_* públicos.
-- Preparar scripts `npm run db:migrate:deploy` e `npm run db:seed` para os ambientes Render/local.
-
-## Fluxos v1 implementados
-1) **Relatórios**: `POST /v1/tenants/:tenantId/reports` aplica autenticação por API Key, enforcement de tenant/escopos, rate limit e idempotência persistente. Cada upsert gera `outbox_events` na mesma transação. O worker lê `outbox_events` (retry/backoff) e dispara o webhook ActivePieces com `requestId/correlationId`, enviando falhas para DLQ.
-2) **Automações**: `POST /v1/tenants/:tenantId/automation-runs` valida idempotência, grava `automation_runs` como `queued` e enfileira no worker de automação (correlationId propagado). O callback assinado (`/v1/webhooks/activepieces/callback`) aplica HMAC + anti-replay por nonce/timestamp via Redis e atualiza o `automation_run` para `SUCCEEDED/FAILED`, enquanto o GET retorna status/output.
-
-## Observabilidade e consistência
-- `requestId` aceito por header ou gerado automaticamente e devolvido em todas as respostas; logs JSON incluem `requestId`, `tenantId`, rota e latência.
-- Envelope de erro padronizado no estilo RFC7807: `{type,title,status,detail,requestId,correlationId}`.
-- Rate limit por tenant/rota com Redis em memória e cabeçalho `Retry-After` em 429.
-- Em ambientes sem Postgres/Redis disponíveis, os clientes usam fallback em memória para desenvolvimento/testes. Em produção, configure os endpoints gerenciados e aplique as migrações do Prisma.
+## Pendencias criticas (alinhamento)
+- Documentar a rota Azure como destino oficial para o Blog e manter o contrato imutavel.
+- Corrigir sanitizacao de HTML no backend e/ou antes de salvar.
+- Endurecer o middleware de arquivos estaticos contra path traversal e erros.
+- Remover defaults inseguros de segredos (ex: `change-me`) fora de dev/test.
+- Publicar OpenAPI e expandir cobertura de testes.
